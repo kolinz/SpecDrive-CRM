@@ -4,7 +4,7 @@
 **バージョン:** 1.2.4  
 **作成日:** 2026-03-22  
 **更新日:** 2026-03-26  
-**対象環境:** Docker Compose（ローカルPC）  
+**対象環境:** Docker Compose  
 **目的:** localtonet + AWS Lightsail Metabase との連携デモ
 
 ### 変更履歴
