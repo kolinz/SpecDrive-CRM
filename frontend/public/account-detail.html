@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>取引先詳細 — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item active">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item">💼 商談</a>
+        <a href="/cases.html"          class="nav-item">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <div class="topbar">
+        <span class="topbar-title" id="topbar-title">取引先</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <div class="page-content">
+
+        <!-- パンくず -->
+        <div class="breadcrumb" id="breadcrumb">
+          <a href="/accounts.html">取引先一覧</a>
+          <span class="breadcrumb-sep">›</span>
+          <span id="breadcrumb-current">新規作成</span>
+        </div>
+
+        <!-- 詳細ヘッダー -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <div class="detail-title" id="detail-title">新規取引先</div>
+          </div>
+          <div class="detail-actions" id="detail-actions"></div>
+        </div>
+
+        <!-- フォームセクション -->
+        <div class="detail-section" id="form-section">
+          <div class="detail-section-title">基本情報</div>
+          <div id="form-area"></div>
+        </div>
+
+        <!-- 関連情報タブ（表示・編集モードのみ） -->
+        <div id="related-section" style="display:none;">
+          <div class="tabs" id="related-tabs">
+            <div class="tab active" data-tab="contacts">担当者</div>
+            <div class="tab" data-tab="opportunities">商談</div>
+            <div class="tab" data-tab="cases">ケース</div>
+            <div class="tab" data-tab="todos">ToDo</div>
+          </div>
+          <div class="tab-content active" id="tab-contacts"></div>
+          <div class="tab-content"        id="tab-opportunities"></div>
+          <div class="tab-content"        id="tab-cases"></div>
+          <div class="tab-content"        id="tab-todos"></div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /app-shell -->
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('accounts');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    const params   = new URLSearchParams(location.search);
+    const accountId = params.get('id') ? parseInt(params.get('id')) : null;
+    let   mode      = accountId ? 'view' : 'new';  // 'new' | 'view' | 'edit'
+    let   accountData = null;
+
+    // ============================================================
+    // XSS エスケープ
+    // ============================================================
+    function esc(str) {
+      if (!str && str !== 0) return '';
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function val(v) { return (v === null || v === undefined) ? '' : v; }
+
+    // ============================================================
+    // フォーム HTML 生成
+    // ============================================================
+    function buildViewForm(d) {
+      return `
+        <div class="form-grid-2">
+          <div class="form-group">
+            <div class="field-view-label">企業名 <span style="color:var(--danger)">*</span></div>
+            <div class="field-view-value">${esc(d.name) || '<span class="empty">—</span>'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">業種</div>
+            <div class="field-view-value">${esc(d.industry) || '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ウェブサイト</div>
+            <div class="field-view-value">${d.website ? `<a href="${esc(d.website)}" target="_blank" style="color:var(--accent)">${esc(d.website)}</a>` : '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">電話</div>
+            <div class="field-view-value">${esc(d.phone) || '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">年間売上</div>
+            <div class="field-view-value">${d.annual_revenue != null ? formatAmount(d.annual_revenue) : '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">従業員数</div>
+            <div class="field-view-value">${d.employee_count != null ? d.employee_count.toLocaleString() + ' 名' : '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ステータス</div>
+            <div class="field-view-value">${statusBadge(d.status)}</div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <div class="field-view-label">住所</div>
+            <div class="field-view-value">${esc(d.address) || '—'}</div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <div class="field-view-label">メモ</div>
+            <div class="field-view-value" style="white-space:pre-wrap;">${esc(d.notes) || '—'}</div>
+          </div>
+        </div>`;
+    }
+
+    function buildEditForm(d) {
+      const statusOpts = [
+        ['active','アクティブ'],['prospect','見込み'],['inactive','無効']
+      ].map(([v,l]) =>
+        `<option value="${v}" ${val(d.status) === v ? 'selected' : ''}>${l}</option>`
+      ).join('');
+
+      return `
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">企業名 <span class="required">*</span></label>
+            <input class="form-input" id="f-name" type="text" value="${esc(val(d.name))}" placeholder="株式会社〇〇">
+          </div>
+          <div class="form-group">
+            <label class="form-label">業種</label>
+            <input class="form-input" id="f-industry" type="text" value="${esc(val(d.industry))}" placeholder="IT / 製造 など">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ウェブサイト</label>
+            <input class="form-input" id="f-website" type="text" value="${esc(val(d.website))}" placeholder="https://example.co.jp">
+          </div>
+          <div class="form-group">
+            <label class="form-label">電話</label>
+            <input class="form-input" id="f-phone" type="text" value="${esc(val(d.phone))}" placeholder="03-0000-0000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">年間売上（円）</label>
+            <input class="form-input" id="f-revenue" type="number" value="${val(d.annual_revenue)}" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">従業員数</label>
+            <input class="form-input" id="f-employees" type="number" value="${val(d.employee_count)}" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ステータス</label>
+            <select class="form-select" id="f-status">${statusOpts}</select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">住所</label>
+            <textarea class="form-textarea" id="f-address" rows="2" placeholder="東京都〇〇区...">${esc(val(d.address))}</textarea>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">メモ</label>
+            <textarea class="form-textarea" id="f-notes" rows="3" placeholder="備考など">${esc(val(d.notes))}</textarea>
+          </div>
+        </div>`;
+    }
+
+    // ============================================================
+    // アクションボタン描画
+    // ============================================================
+    function renderActions() {
+      const el = document.getElementById('detail-actions');
+      if (mode === 'view') {
+        el.innerHTML = `
+          <button class="btn btn-secondary" id="btn-edit">編集</button>
+          <button class="btn btn-danger"    id="btn-delete">削除</button>`;
+        document.getElementById('btn-edit').addEventListener('click', enterEditMode);
+        document.getElementById('btn-delete').addEventListener('click', doDelete);
+      } else {
+        el.innerHTML = `
+          <button class="btn btn-primary"   id="btn-save">保存</button>
+          <button class="btn btn-secondary" id="btn-cancel">キャンセル</button>`;
+        document.getElementById('btn-save').addEventListener('click', doSave);
+        document.getElementById('btn-cancel').addEventListener('click', doCancel);
+      }
+    }
+
+    // ============================================================
+    // モード切り替え
+    // ============================================================
+    function enterEditMode() {
+      mode = 'edit';
+      renderActions();
+      document.getElementById('form-area').innerHTML = buildEditForm(accountData);
+    }
+
+    function doCancel() {
+      if (mode === 'new') {
+        window.location.href = '/accounts.html';
+      } else {
+        mode = 'view';
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildViewForm(accountData);
+      }
+    }
+
+    // ============================================================
+    // 保存
+    // ============================================================
+    async function doSave() {
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) {
+        showToast('企業名は必須です', 'error');
+        document.getElementById('f-name').focus();
+        return;
+      }
+
+      const body = {
+        name,
+        industry:       document.getElementById('f-industry').value.trim()   || null,
+        website:        document.getElementById('f-website').value.trim()    || null,
+        phone:          document.getElementById('f-phone').value.trim()      || null,
+        address:        document.getElementById('f-address').value.trim()    || null,
+        annual_revenue: document.getElementById('f-revenue').value   !== '' ? parseFloat(document.getElementById('f-revenue').value)   : null,
+        employee_count: document.getElementById('f-employees').value !== '' ? parseInt(document.getElementById('f-employees').value)   : null,
+        status:         document.getElementById('f-status').value,
+        notes:          document.getElementById('f-notes').value.trim()      || null,
+      };
+
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+
+      try {
+        if (mode === 'new') {
+          const res = await api.post('/accounts', body);
+          showToast('取引先を作成しました', 'success');
+          window.location.href = `/account-detail.html?id=${res.data.id}`;
+        } else {
+          const res = await api.put(`/accounts/${accountId}`, body);
+          accountData = { ...accountData, ...res.data };
+          mode = 'view';
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(accountData);
+          updateTitles(accountData.name);
+          showToast('保存しました', 'success');
+        }
+      } catch (err) {
+        showToast(err.message || '保存に失敗しました', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '保存';
+      }
+    }
+
+    // ============================================================
+    // 削除
+    // ============================================================
+    function doDelete() {
+      showConfirm({
+        title:   '取引先を削除',
+        message: `「${accountData.name}」を削除します。この操作は元に戻せません。`,
+        onConfirm: async () => {
+          try {
+            await api.del(`/accounts/${accountId}`);
+            showToast('削除しました', 'success');
+            setTimeout(() => { window.location.href = '/accounts.html'; }, 800);
+          } catch (err) {
+            showToast(err.message || '削除に失敗しました', 'error');
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // タイトル・パンくず更新
+    // ============================================================
+    function updateTitles(name) {
+      const label = name || '新規取引先';
+      document.title = `${label} — Demo CRM`;
+      document.getElementById('detail-title').textContent    = label;
+      document.getElementById('breadcrumb-current').textContent = label;
+      document.getElementById('topbar-title').textContent    = label;
+    }
+
+    // ============================================================
+    // 関連情報タブ
+    // ============================================================
+    function renderRelatedTabs(data) {
+      document.getElementById('related-section').style.display = '';
+      renderContactsTab(data.contacts      || [], data.id);
+      renderOppsTab(data.opportunities     || [], data.id);
+      renderCasesTab(data.cases            || [], data.id);
+      renderTodosTab(data.todos            || [], data.id);
+
+      // タブ切り替え
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        });
+      });
+    }
+
+    function renderContactsTab(rows, aid) {
+      const el = document.getElementById('tab-contacts');
+      const newBtn = `<a href="/contact-detail.html?account_id=${aid}" class="btn btn-primary btn-sm" style="margin-bottom:10px;">＋ 新規担当者</a>`;
+      if (!rows.length) { el.innerHTML = newBtn + '<div class="empty-state">担当者がいません</div>'; return; }
+      el.innerHTML = newBtn + `
+        <table class="data-table">
+          <thead><tr><th>氏名</th><th>役職</th><th>部署</th><th>メール</th></tr></thead>
+          <tbody>${rows.map(r => `
+            <tr>
+              <td><a href="/contact-detail.html?id=${r.id}" class="link-cell">${esc(r.last_name)} ${esc(r.first_name)}</a></td>
+              <td>${esc(r.title)||'—'}</td>
+              <td>${esc(r.department)||'—'}</td>
+              <td>${esc(r.email)||'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function renderOppsTab(rows, aid) {
+      const el = document.getElementById('tab-opportunities');
+      const newBtn = `<a href="/opportunity-detail.html?account_id=${aid}" class="btn btn-primary btn-sm" style="margin-bottom:10px;">＋ 新規商談</a>`;
+      if (!rows.length) { el.innerHTML = newBtn + '<div class="empty-state">商談がありません</div>'; return; }
+      el.innerHTML = newBtn + `
+        <table class="data-table">
+          <thead><tr><th>商談名</th><th>ステージ</th><th>金額</th><th>クローズ予定日</th></tr></thead>
+          <tbody>${rows.map(r => `
+            <tr>
+              <td><a href="/opportunity-detail.html?id=${r.id}" class="link-cell">${esc(r.name)}</a></td>
+              <td>${stageBadge(r.stage)}</td>
+              <td style="text-align:right;">${formatAmount(r.amount)}</td>
+              <td>${formatDate(r.close_date)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function renderCasesTab(rows, aid) {
+      const el = document.getElementById('tab-cases');
+      const newBtn = `<a href="/case-detail.html?account_id=${aid}" class="btn btn-primary btn-sm" style="margin-bottom:10px;">＋ 新規ケース</a>`;
+      if (!rows.length) { el.innerHTML = newBtn + '<div class="empty-state">ケースがありません</div>'; return; }
+      el.innerHTML = newBtn + `
+        <table class="data-table">
+          <thead><tr><th>件名</th><th>ステータス</th><th>優先度</th><th>作成日</th></tr></thead>
+          <tbody>${rows.map(r => `
+            <tr>
+              <td><a href="/case-detail.html?id=${r.id}" class="link-cell">${esc(r.subject)}</a></td>
+              <td>${statusBadge(r.status)}</td>
+              <td>${priorityBadge(r.priority)}</td>
+              <td>${formatDate(r.created_at)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function renderTodosTab(rows, aid) {
+      const el = document.getElementById('tab-todos');
+      const newBtn = `<a href="/todo-detail.html?account_id=${aid}" class="btn btn-primary btn-sm" style="margin-bottom:10px;">＋ 新規 ToDo</a>`;
+      if (!rows.length) { el.innerHTML = newBtn + '<div class="empty-state">ToDoがありません</div>'; return; }
+      el.innerHTML = newBtn + `
+        <table class="data-table">
+          <thead><tr><th>タイトル</th><th>担当者</th><th>ステータス</th><th>期限日</th></tr></thead>
+          <tbody>${rows.map(r => `
+            <tr>
+              <td><a href="/todo-detail.html?id=${r.id}" class="link-cell">${esc(r.title)}</a></td>
+              <td>${esc(r.assignee_name||'—')}</td>
+              <td>${statusBadge(r.status)}</td>
+              <td class="${r.due_date && new Date(r.due_date) < new Date() && r.status !== 'done' ? 'overdue' : ''}">${formatDate(r.due_date)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    async function init() {
+      if (mode === 'new') {
+        // 新規作成モード
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildEditForm({});
+      } else {
+        // 表示モード
+        try {
+          const res   = await api.get(`/accounts/${accountId}`);
+          accountData = res.data;
+          updateTitles(accountData.name);
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(accountData);
+          renderRelatedTabs(accountData);
+        } catch (err) {
+          document.getElementById('form-area').innerHTML =
+            '<div class="empty-state text-danger">取引先の読み込みに失敗しました</div>';
+          console.error(err);
+        }
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

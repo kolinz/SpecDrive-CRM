@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユーザー詳細 — Demo CRM</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .role-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+    .role-admin   { background:#faf5ff; color:#6d28d9; border:1px solid #c4b5fd; }
+    .role-manager { background:#eff6ff; color:#2563eb; border:1px solid #93c5fd; }
+    .role-staff   { background:#f0fdf4; color:#16a34a; border:1px solid #86efac; }
+    .self-role-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      padding: 6px 10px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: var(--radius);
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+
+    <!-- サイドバー -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-logo">
+        🗂 Demo CRM<br>
+        <span style="font-size:11px;opacity:.7;font-weight:400;">システム管理</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/admin-ui/users.html"       class="nav-item active">👥 ユーザー管理</a>
+        <a href="/admin-ui/ai-settings.html" class="nav-item">🤖 AI接続設定</a>
+        <hr class="nav-separator">
+        <a href="/index.html" class="nav-item">← CRM業務へ</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">管理者</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="admin-main">
+      <div class="topbar">
+        <span class="topbar-title" id="topbar-title">ユーザー</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+      </div>
+
+      <div class="page-content">
+
+        <!-- パンくず -->
+        <div class="breadcrumb">
+          <a href="/admin-ui/users.html">ユーザー管理</a>
+          <span class="breadcrumb-sep">›</span>
+          <span id="breadcrumb-current">新規作成</span>
+        </div>
+
+        <!-- 詳細ヘッダー -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <div class="detail-title" id="detail-title">新規ユーザー</div>
+          </div>
+          <div class="detail-actions" id="detail-actions"></div>
+        </div>
+
+        <!-- フォームセクション -->
+        <div class="detail-section">
+          <div class="detail-section-title">ユーザー情報</div>
+          <div id="form-area"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    // ============================================================
+    // 認証ガード
+    // ============================================================
+    guardAdmin();
+    renderNavUserInfo();
+
+    const currentUser = getUser();
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    const urlParams = new URLSearchParams(location.search);
+    const userId    = urlParams.get('id') ? parseInt(urlParams.get('id')) : null;
+    let   mode      = userId ? 'view' : 'new';
+    let   userData  = null;
+
+    const ROLE_LABELS  = { admin:'管理者', manager:'マネージャー', staff:'スタッフ' };
+    const ROLE_CLASSES = { admin:'role-admin', manager:'role-manager', staff:'role-staff' };
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function val(v) { return (v === null || v === undefined) ? '' : v; }
+
+    const isSelf = (id) => id && currentUser && parseInt(id) === currentUser.id;
+
+    // ============================================================
+    // 表示フォーム
+    // ============================================================
+    function buildViewForm(d) {
+      const roleCls   = ROLE_CLASSES[d.role] || '';
+      const roleLabel = ROLE_LABELS[d.role]  || d.role;
+      return `
+        <div class="form-grid-2">
+          <div class="form-group">
+            <div class="field-view-label">名前</div>
+            <div class="field-view-value">
+              ${esc(d.name)}
+              ${isSelf(d.id) ? '<span style="font-size:12px;color:var(--text-muted);margin-left:6px;">(あなた)</span>' : ''}
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ユーザー名</div>
+            <div class="field-view-value" style="font-family:monospace;">${esc(d.username)}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ロール</div>
+            <div class="field-view-value">
+              <span class="role-badge ${roleCls}">${esc(roleLabel)}</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ステータス</div>
+            <div class="field-view-value">
+              <label class="toggle" style="pointer-events:none;">
+                <input type="checkbox" ${d.is_active ? 'checked' : ''} disabled>
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="margin-left:10px;font-size:13px;color:${d.is_active ? 'var(--success)' : 'var(--text-muted)'};">
+                ${d.is_active ? '有効' : '無効'}
+              </span>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">作成日</div>
+            <div class="field-view-value">${formatDate(d.created_at)}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">更新日</div>
+            <div class="field-view-value">${formatDate(d.updated_at)}</div>
+          </div>
+        </div>`;
+    }
+
+    // ============================================================
+    // 編集フォーム
+    // ============================================================
+    function buildEditForm(d) {
+      const isSelfEdit = isSelf(d.id);
+
+      const roleOpts = [
+        ['admin','管理者'],['manager','マネージャー'],['staff','スタッフ']
+      ].map(([v, l]) => {
+        // 自分自身の場合 admin 以外は disabled
+        const isDisabled = isSelfEdit && v !== 'admin' ? 'disabled' : '';
+        return `<option value="${v}" ${val(d.role) === v ? 'selected' : ''} ${isDisabled}>${l}</option>`;
+      }).join('');
+
+      return `
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">名前 <span class="required">*</span></label>
+            <input class="form-input" id="f-name" type="text"
+              value="${esc(val(d.name))}" placeholder="山田太郎">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ユーザー名 <span class="required">*</span></label>
+            <input class="form-input" id="f-username" type="text"
+              value="${esc(val(d.username))}" placeholder="yamada"
+              autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              パスワード
+              ${mode === 'new' ? '<span class="required">*</span>' : ''}
+              ${mode === 'edit' ? '<span style="font-size:11px;color:var(--text-muted);font-weight:400;text-transform:none;">&nbsp;空欄なら変更しない</span>' : ''}
+            </label>
+            <input class="form-input" id="f-password" type="password"
+              placeholder="${mode === 'new' ? 'パスワードを入力' : '変更する場合のみ入力'}"
+              autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ロール <span class="required">*</span></label>
+            <select class="form-select" id="f-role">${roleOpts}</select>
+            ${isSelfEdit ? `<div class="self-role-note">⚠ 自分自身のロールは admin から変更できません</div>` : ''}
+          </div>
+          ${mode === 'edit' ? `
+          <div class="form-group">
+            <label class="form-label">有効/無効</label>
+            <div class="toggle-wrapper" style="margin-top:6px;">
+              <label class="toggle">
+                <input type="checkbox" id="f-is-active" ${d.is_active ? 'checked' : ''}
+                  ${isSelf(d.id) ? 'disabled' : ''}>
+                <span class="toggle-slider"></span>
+              </label>
+              <span id="f-active-label" style="font-size:13px;color:var(--text-muted);">
+                ${d.is_active ? '有効（ログイン可）' : '無効（ログイン不可）'}
+              </span>
+            </div>
+            ${isSelf(d.id) ? '<div class="self-role-note" style="margin-top:6px;">⚠ 自分自身の有効/無効は変更できません</div>' : ''}
+          </div>` : ''}
+        </div>`;
+    }
+
+    // ============================================================
+    // 編集フォーム後処理
+    // ============================================================
+    function initEditForm() {
+      const isActiveCb  = document.getElementById('f-is-active');
+      const activeLabel = document.getElementById('f-active-label');
+      if (isActiveCb && activeLabel) {
+        isActiveCb.addEventListener('change', () => {
+          activeLabel.textContent = isActiveCb.checked
+            ? '有効（ログイン可）' : '無効（ログイン不可）';
+        });
+      }
+    }
+
+    // ============================================================
+    // アクションボタン
+    // ============================================================
+    function renderActions() {
+      const el = document.getElementById('detail-actions');
+      if (mode === 'view') {
+        el.innerHTML = `
+          <button class="btn btn-secondary" id="btn-edit">編集</button>
+          <button class="btn btn-danger ${isSelf(userId) ? 'btn-secondary' : ''}"
+            id="btn-delete" ${isSelf(userId) ? 'disabled title="自分自身は削除できません"' : ''}>
+            削除
+          </button>`;
+        document.getElementById('btn-edit').addEventListener('click', () => {
+          mode = 'edit';
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildEditForm(userData);
+          initEditForm();
+        });
+        if (!isSelf(userId)) {
+          document.getElementById('btn-delete').addEventListener('click', doDelete);
+        }
+      } else {
+        el.innerHTML = `
+          <button class="btn btn-primary"   id="btn-save">保存</button>
+          <button class="btn btn-secondary" id="btn-cancel">キャンセル</button>`;
+        document.getElementById('btn-save').addEventListener('click', doSave);
+        document.getElementById('btn-cancel').addEventListener('click', doCancel);
+      }
+    }
+
+    // ============================================================
+    // キャンセル
+    // ============================================================
+    function doCancel() {
+      if (mode === 'new') {
+        window.location.href = '/admin-ui/users.html';
+      } else {
+        mode = 'view';
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildViewForm(userData);
+      }
+    }
+
+    // ============================================================
+    // 保存
+    // ============================================================
+    async function doSave() {
+      const name     = document.getElementById('f-name').value.trim();
+      const username = document.getElementById('f-username').value.trim();
+      const password = document.getElementById('f-password').value;
+      const role     = document.getElementById('f-role').value;
+
+      if (!name || !username || !role) {
+        showToast('名前・ユーザー名・ロールは必須です', 'error');
+        return;
+      }
+      if (mode === 'new' && !password) {
+        showToast('新規作成時はパスワードが必須です', 'error');
+        document.getElementById('f-password').focus();
+        return;
+      }
+
+      const body = { name, username, role };
+      if (password) body.password = password;
+
+      // 編集モードの有効/無効
+      if (mode === 'edit') {
+        const isActiveCb = document.getElementById('f-is-active');
+        if (isActiveCb && !isSelf(userId)) {
+          body.is_active = isActiveCb.checked;
+        }
+      }
+
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true; btn.textContent = '保存中...';
+
+      try {
+        if (mode === 'new') {
+          const res = await api.post('/users', body);
+          showToast('ユーザーを作成しました', 'success');
+          window.location.href = `/admin-ui/user-detail.html?id=${res.data.id}`;
+        } else {
+          const res = await api.put(`/users/${userId}`, body);
+          userData = res.data;
+          mode = 'view';
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(userData);
+          updateTitles(userData.name);
+          showToast('保存しました', 'success');
+        }
+      } catch (err) {
+        // username 重複エラー
+        if (err.code === 'DUPLICATE_USERNAME') {
+          showToast('このユーザー名は既に使用されています', 'error');
+        } else {
+          showToast(err.message || '保存に失敗しました', 'error');
+        }
+      } finally {
+        btn.disabled = false; btn.textContent = '保存';
+      }
+    }
+
+    // ============================================================
+    // 削除（論理削除）
+    // ============================================================
+    function doDelete() {
+      showConfirm({
+        title:   'ユーザーを削除',
+        message: `「${userData.name}」を無効化します。このユーザーはログインできなくなります。`,
+        onConfirm: async () => {
+          try {
+            await api.del(`/users/${userId}`);
+            showToast(`「${userData.name}」を無効化しました`, 'success');
+            setTimeout(() => { window.location.href = '/admin-ui/users.html'; }, 800);
+          } catch (err) {
+            showToast(err.message || '削除に失敗しました', 'error');
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // タイトル更新
+    // ============================================================
+    function updateTitles(name) {
+      const label = name || 'ユーザー';
+      document.title = `${label} — Demo CRM`;
+      document.getElementById('detail-title').textContent       = label;
+      document.getElementById('breadcrumb-current').textContent  = label;
+      document.getElementById('topbar-title').textContent        = label;
+    }
+
+    // ============================================================
+    // ログアウト
+    // ============================================================
+    document.getElementById('btn-logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    async function init() {
+      if (mode === 'new') {
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildEditForm({});
+        initEditForm();
+      } else {
+        try {
+          const res  = await api.get(`/users/${userId}`);
+          userData   = res.data;
+          updateTitles(userData.name);
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(userData);
+        } catch (err) {
+          document.getElementById('form-area').innerHTML =
+            '<div class="empty-state text-danger">ユーザーの読み込みに失敗しました</div>';
+          console.error(err);
+        }
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユーザー管理 — Demo CRM</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .role-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .role-admin   { background:#faf5ff; color:#6d28d9; border:1px solid #c4b5fd; }
+    .role-manager { background:#eff6ff; color:#2563eb; border:1px solid #93c5fd; }
+    .role-staff   { background:#f0fdf4; color:#16a34a; border:1px solid #86efac; }
+    .active-dot   { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+    .dot-active   { background:#16a34a; }
+    .dot-inactive { background:#d1d5db; }
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+
+    <!-- サイドバー -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-logo">
+        🗂 Demo CRM<br>
+        <span style="font-size:11px;opacity:.7;font-weight:400;">システム管理</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/admin-ui/users.html"       class="nav-item active">👥 ユーザー管理</a>
+        <a href="/admin-ui/ai-settings.html" class="nav-item">🤖 AI接続設定</a>
+        <hr class="nav-separator">
+        <a href="/index.html" class="nav-item">← CRM業務へ</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">管理者</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="admin-main">
+
+      <!-- トップバー -->
+      <div class="topbar">
+        <span class="topbar-title">ユーザー管理</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+      </div>
+
+      <!-- ページ本体 -->
+      <div class="page-content">
+
+        <div class="page-header">
+          <div></div>
+          <a href="/admin-ui/user-detail.html" class="btn btn-primary">＋ 新規作成</a>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>名前</th>
+                <th>ユーザー名</th>
+                <th>ロール</th>
+                <th>ステータス</th>
+                <th>作成日</th>
+                <th style="width:80px;text-align:center;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" class="empty-state">読み込み中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    // ============================================================
+    // 認証ガード（admin のみ）
+    // ============================================================
+    guardAdmin();
+    renderNavUserInfo();
+
+    const currentUser = getUser(); // { id, username, role }
+
+    // ============================================================
+    // XSS エスケープ
+    // ============================================================
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const ROLE_LABELS = { admin:'管理者', manager:'マネージャー', staff:'スタッフ' };
+    const ROLE_CLASSES = { admin:'role-admin', manager:'role-manager', staff:'role-staff' };
+
+    // ============================================================
+    // データ取得・描画
+    // ============================================================
+    async function loadUsers() {
+      const tbody = document.getElementById('users-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">読み込み中...</td></tr>';
+
+      try {
+        const res   = await api.get('/users');
+        const users = res.data || [];
+
+        if (!users.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">ユーザーがいません</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = users.map(u => {
+          const isSelf     = u.id === currentUser?.id;
+          const roleLabel  = ROLE_LABELS[u.role]  || u.role;
+          const roleCls    = ROLE_CLASSES[u.role] || '';
+          const dotCls     = u.is_active ? 'dot-active' : 'dot-inactive';
+          const statusText = u.is_active ? 'アクティブ' : '無効';
+
+          return `
+            <tr>
+              <td>
+                <a href="/admin-ui/user-detail.html?id=${u.id}" class="link-cell">
+                  ${esc(u.name)}
+                  ${isSelf ? '<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">(自分)</span>' : ''}
+                </a>
+              </td>
+              <td class="text-muted">${esc(u.username)}</td>
+              <td><span class="role-badge ${roleCls}">${esc(roleLabel)}</span></td>
+              <td>
+                <span class="active-dot ${dotCls}"></span>
+                ${statusText}
+              </td>
+              <td class="text-muted">${formatDate(u.created_at)}</td>
+              <td style="text-align:center;">
+                <button
+                  class="btn btn-sm ${isSelf ? 'btn-secondary' : 'btn-danger'}"
+                  data-id="${u.id}"
+                  data-name="${esc(u.name)}"
+                  ${isSelf ? 'disabled title="自分自身は削除できません"' : ''}
+                  onclick="confirmDelete(${u.id}, '${esc(u.name)}')"
+                >削除</button>
+              </td>
+            </tr>`;
+        }).join('');
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-state text-danger">読み込みに失敗しました</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // 削除
+    // ============================================================
+    function confirmDelete(id, name) {
+      showConfirm({
+        title:   'ユーザーを削除',
+        message: `「${name}」を無効化します。このユーザーはログインできなくなります。`,
+        onConfirm: async () => {
+          try {
+            await api.del(`/users/${id}`);
+            showToast(`「${name}」を無効化しました`, 'success');
+            loadUsers();
+          } catch (err) {
+            showToast(err.message || '削除に失敗しました', 'error');
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // ログアウトボタン
+    // ============================================================
+    document.getElementById('btn-logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // ============================================================
+    // 初期ロード
+    // ============================================================
+    loadUsers();
+  </script>
+</body>
+</html>

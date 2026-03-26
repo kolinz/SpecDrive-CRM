@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ケース — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item">💼 商談</a>
+        <a href="/cases.html"          class="nav-item active">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <div class="topbar">
+        <span class="topbar-title">ケース</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <div class="page-content">
+
+        <!-- ページヘッダー -->
+        <div class="page-header">
+          <div></div>
+          <a href="/case-detail.html" class="btn btn-primary">＋ 新規作成</a>
+        </div>
+
+        <!-- フィルターバー -->
+        <div class="filter-bar">
+          <select class="form-select" id="filter-status" style="min-width:130px;">
+            <option value="">ステータス（すべて）</option>
+            <option value="open">オープン</option>
+            <option value="in_progress">対応中</option>
+            <option value="pending">保留</option>
+            <option value="resolved">解決済</option>
+            <option value="closed">クローズ</option>
+          </select>
+          <select class="form-select" id="filter-priority" style="min-width:120px;">
+            <option value="">優先度（すべて）</option>
+            <option value="critical">緊急</option>
+            <option value="high">高</option>
+            <option value="medium">中</option>
+            <option value="low">低</option>
+          </select>
+          <select class="form-select" id="filter-assigned" style="min-width:140px;">
+            <option value="">担当者（すべて）</option>
+          </select>
+          <select class="form-select" id="filter-category" style="min-width:140px;">
+            <option value="">カテゴリー（すべて）</option>
+            <option value="technical">技術</option>
+            <option value="billing">請求</option>
+            <option value="general">一般</option>
+            <option value="feature_request">機能要望</option>
+            <option value="other">その他</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-clear">クリア</button>
+          <span class="text-muted" id="result-count" style="font-size:13px;margin-left:auto;"></span>
+        </div>
+
+        <!-- テーブル -->
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>件名</th>
+                <th>取引先</th>
+                <th>社内担当者</th>
+                <th>ステータス</th>
+                <th>優先度</th>
+                <th>カテゴリー</th>
+                <th>対応期限</th>
+                <th>作成日</th>
+              </tr>
+            </thead>
+            <tbody id="cases-tbody">
+              <tr><td colspan="8" class="empty-state">読み込み中...</td></tr>
+            </tbody>
+          </table>
+
+          <div class="pagination" id="pagination" style="display:none;">
+            <span class="pagination-info" id="pagination-info"></span>
+            <div class="pagination-btns">
+              <button class="btn btn-secondary btn-sm" id="btn-prev">← 前へ</button>
+              <button class="btn btn-secondary btn-sm" id="btn-next">次へ →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('cases');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentPage = 1;
+    const LIMIT     = 20;
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const CATEGORY_LABELS = {
+      technical:       '技術',
+      billing:         '請求',
+      general:         '一般',
+      feature_request: '機能要望',
+      other:           'その他',
+    };
+
+    // ============================================================
+    // 担当者セレクト読み込み
+    // ============================================================
+    async function loadAssignedOptions() {
+      try {
+        const res = await api.get('/users');
+        const sel = document.getElementById('filter-assigned');
+        (res.data || []).forEach(u => {
+          const opt = document.createElement('option');
+          opt.value       = u.id;
+          opt.textContent = u.name;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('担当者オプション読み込みエラー', err);
+      }
+    }
+
+    // ============================================================
+    // クエリパラメータ構築
+    // ============================================================
+    function getParams() {
+      const p = new URLSearchParams();
+      const status   = document.getElementById('filter-status').value;
+      const priority = document.getElementById('filter-priority').value;
+      const assigned = document.getElementById('filter-assigned').value;
+      const category = document.getElementById('filter-category').value;
+      if (status)   p.set('status',      status);
+      if (priority) p.set('priority',    priority);
+      if (assigned) p.set('assigned_to', assigned);
+      if (category) p.set('category',    category);
+      p.set('page',  currentPage);
+      p.set('limit', LIMIT);
+      return p.toString();
+    }
+
+    // ============================================================
+    // データ取得・描画
+    // ============================================================
+    async function loadCases() {
+      const tbody = document.getElementById('cases-tbody');
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">読み込み中...</td></tr>';
+
+      try {
+        const res   = await api.get(`/cases?${getParams()}`);
+        const cases = res.data;
+        const meta  = res.meta;
+
+        if (!cases || cases.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty-state">ケースが見つかりません</td></tr>';
+          document.getElementById('pagination').style.display = 'none';
+          document.getElementById('result-count').textContent = '0 件';
+          return;
+        }
+
+        tbody.innerHTML = cases.map(c => {
+          const accountName  = c.account?.name  || c.account_name  || '—';
+          const assignedName = c.assigned_user?.name || c.assigned_user_name || '—';
+          const isOverdue    = c.due_date
+            && new Date(c.due_date) < new Date()
+            && !['resolved','closed'].includes(c.status);
+
+          return `
+            <tr>
+              <td>
+                <a href="/case-detail.html?id=${c.id}" class="link-cell">
+                  ${esc(c.subject)}
+                </a>
+              </td>
+              <td>
+                ${c.account_id
+                  ? `<a href="/account-detail.html?id=${c.account_id}" class="link-cell">${esc(accountName)}</a>`
+                  : `<span class="text-muted">${esc(accountName)}</span>`}
+              </td>
+              <td class="text-muted">${esc(assignedName)}</td>
+              <td>${statusBadge(c.status)}</td>
+              <td>${priorityBadge(c.priority)}</td>
+              <td class="text-muted">${CATEGORY_LABELS[c.category] || c.category || '—'}</td>
+              <td class="${isOverdue ? 'overdue' : ''}">${formatDate(c.due_date)}</td>
+              <td class="text-muted">${formatDate(c.created_at)}</td>
+            </tr>`;
+        }).join('');
+
+        // ページネーション
+        const total      = meta.total;
+        const totalPages = Math.ceil(total / LIMIT);
+        document.getElementById('result-count').textContent = `${total.toLocaleString()} 件`;
+        document.getElementById('pagination-info').textContent =
+          `${((currentPage - 1) * LIMIT) + 1}〜${Math.min(currentPage * LIMIT, total)} 件 / 全 ${total} 件`;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        document.getElementById('pagination').style.display = total > LIMIT ? 'flex' : 'none';
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-state text-danger">読み込みに失敗しました</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // イベント
+    // ============================================================
+    ['filter-status','filter-priority','filter-assigned','filter-category'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        currentPage = 1;
+        loadCases();
+      });
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      document.getElementById('filter-status').value   = '';
+      document.getElementById('filter-priority').value = '';
+      document.getElementById('filter-assigned').value = '';
+      document.getElementById('filter-category').value = '';
+      currentPage = 1;
+      loadCases();
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; loadCases(); }
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      currentPage++;
+      loadCases();
+    });
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    (async () => {
+      await loadAssignedOptions();
+      loadCases();
+    })();
+  </script>
+</body>
+</html>

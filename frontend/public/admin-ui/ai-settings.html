@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI接続設定 — Demo CRM</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .provider-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .provider-tab {
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      user-select: none;
+    }
+    .provider-tab:hover { color: var(--accent); }
+    .provider-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .provider-panel { display: none; }
+    .provider-panel.active { display: block; }
+
+    .test-result {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      display: none;
+    }
+    .test-result.success {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #86efac;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .test-result.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .test-result.loading {
+      background: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #7dd3fc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      max-width: 700px;
+    }
+
+    .settings-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .none-notice {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .provider-radio-label {
+      cursor: pointer;
+      user-select: none;
+    }
+    .provider-radio-label input[type="radio"] { display: none; }
+    .provider-radio-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--white);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .provider-radio-label:hover .provider-radio-box {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .provider-radio-label input[type="radio"]:checked + .provider-radio-box {
+      border-color: var(--accent);
+      background: #eff6ff;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .provider-radio-icon { font-size: 16px; }
+
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+
+    <!-- サイドバー -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-logo">
+        🗂 Demo CRM<br>
+        <span style="font-size:11px;opacity:.7;font-weight:400;">システム管理</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/admin-ui/users.html"       class="nav-item">👥 ユーザー管理</a>
+        <a href="/admin-ui/ai-settings.html" class="nav-item active">🤖 AI接続設定</a>
+        <hr class="nav-separator">
+        <a href="/index.html" class="nav-item">← CRM業務へ</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">管理者</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="admin-main">
+      <div class="topbar">
+        <span class="topbar-title">AI接続設定</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+      </div>
+
+      <div class="page-content">
+
+        <div class="settings-card">
+
+          <!-- 使用するプロバイダー選択 -->
+          <div style="margin-bottom:20px;">
+            <div class="form-label" style="margin-bottom:10px;">使用するプロバイダー</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <label class="provider-radio-label" id="radio-label-none">
+                <input type="radio" name="active-provider" value="none" id="radio-none">
+                <span class="provider-radio-box">
+                  <span class="provider-radio-icon">🚫</span>
+                  <span class="provider-radio-name">使用しない</span>
+                </span>
+              </label>
+              <label class="provider-radio-label" id="radio-label-openai">
+                <input type="radio" name="active-provider" value="openai" id="radio-openai">
+                <span class="provider-radio-box">
+                  <span class="provider-radio-icon">🤖</span>
+                  <span class="provider-radio-name">OpenAI</span>
+                </span>
+              </label>
+              <label class="provider-radio-label" id="radio-label-dify">
+                <input type="radio" name="active-provider" value="dify" id="radio-dify">
+                <span class="provider-radio-box">
+                  <span class="provider-radio-icon">⚡</span>
+                  <span class="provider-radio-name">Dify</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- プロバイダータブ（接続設定） -->
+          <div style="margin-bottom:8px;font-size:13px;color:var(--text-muted);font-weight:600;">接続設定</div>
+          <div class="provider-tabs">
+            <div class="provider-tab active" data-provider="openai" id="tab-openai">
+              OpenAI
+            </div>
+            <div class="provider-tab" data-provider="dify" id="tab-dify">
+              Dify
+            </div>
+          </div>
+
+          <!-- OpenAI パネル -->
+          <div class="provider-panel active" id="panel-openai">
+            <div class="form-grid-2">
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">エンドポイント</label>
+                <input class="form-input" id="openai-endpoint" type="text"
+                  placeholder="https://api.openai.com/v1"
+                  value="https://api.openai.com/v1">
+                <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">
+                  Azure OpenAI などカスタムエンドポイントを使用する場合に変更してください
+                </div>
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">API キー</label>
+                <input class="form-input" id="openai-api-key" type="password"
+                  placeholder="sk-..." autocomplete="off">
+                <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">
+                  変更しない場合は空欄のままにしてください。現在保存済みのキーは下記に表示されます。
+                </div>
+                <div id="openai-key-display" class="key-display" style="margin-top:6px;display:none;"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">モデル名</label>
+                <input class="form-input" id="openai-model" type="text"
+                  placeholder="gpt-4o" value="gpt-4o">
+              </div>
+              <div class="form-group">
+                <label class="form-label">最大トークン数</label>
+                <input class="form-input" id="openai-max-tokens" type="number"
+                  placeholder="2048" value="2048" min="256" max="32768">
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">システムプロンプト（省略可）</label>
+                <textarea class="form-textarea" id="openai-system-prompt" rows="4"
+                  placeholder="AI アシスタントの役割・振る舞いを記述（省略可）"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dify パネル -->
+          <div class="provider-panel" id="panel-dify">
+            <div class="form-grid-2">
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">エンドポイント</label>
+                <input class="form-input" id="dify-endpoint" type="text"
+                  placeholder="https://api.dify.ai/v1">
+                <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">
+                  Dify のインスタンスアドレスを入力してください（末尾スラッシュなし）
+                </div>
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">API キー</label>
+                <input class="form-input" id="dify-api-key" type="password"
+                  placeholder="app-..." autocomplete="off">
+                <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">
+                  変更しない場合は空欄のままにしてください。現在保存済みのキーは下記に表示されます。
+                </div>
+                <div id="dify-key-display" class="key-display" style="margin-top:6px;display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 接続テスト結果 -->
+          <div class="test-result" id="test-result"></div>
+
+          <!-- アクションボタン -->
+          <div class="settings-actions">
+            <button class="btn btn-secondary" id="btn-test">🔌 接続テスト</button>
+            <button class="btn btn-primary"   id="btn-save">💾 設定を保存</button>
+            <span id="save-status" style="font-size:13px;color:var(--text-muted);"></span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    guardAdmin();
+    renderNavUserInfo();
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentProvider = 'none'; // 保存時に使用するプロバイダー
+    let savedSettings   = null;
+
+    // ============================================================
+    // ラジオボタン：使用プロバイダー選択
+    // ============================================================
+    document.querySelectorAll('input[name="active-provider"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        currentProvider = radio.value;
+        // none 選択時は接続テストボタンを無効化
+        document.getElementById('btn-test').disabled = (currentProvider === 'none');
+      });
+    });
+
+    function setActiveRadio(provider) {
+      const val = ['openai','dify'].includes(provider) ? provider : 'none';
+      currentProvider = val;
+      const radio = document.getElementById(`radio-${val}`);
+      if (radio) radio.checked = true;
+      document.getElementById('btn-test').disabled = (val === 'none');
+    }
+
+    // ============================================================
+    // タブ切り替え（接続設定の表示切り替えのみ。保存プロバイダーとは独立）
+    // ============================================================
+    document.querySelectorAll('.provider-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.provider-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`panel-${tab.dataset.provider}`).classList.add('active');
+        clearTestResult();
+      });
+    });
+
+    // ============================================================
+    // 設定読み込み
+    // ============================================================
+    async function loadSettings() {
+      try {
+        const res      = savedSettings ? { data: savedSettings } : await api.get('/ai/settings');
+        const settings = res.data;
+        savedSettings  = settings;
+
+        // ラジオボタンで現在の有効プロバイダーを選択
+        setActiveRadio(settings.provider);
+
+        // 現在のプロバイダーのタブをアクティブに（none の場合は openai タブをデフォルト表示）
+        const displayTab = ['openai','dify'].includes(settings.provider) ? settings.provider : 'openai';
+        document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.provider-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(`tab-${displayTab}`).classList.add('active');
+        document.getElementById(`panel-${displayTab}`).classList.add('active');
+
+        // OpenAI フォームに値をセット
+        if (settings.openai_endpoint) {
+          document.getElementById('openai-endpoint').value = settings.openai_endpoint;
+        }
+        if (settings.openai_model) {
+          document.getElementById('openai-model').value = settings.openai_model;
+        }
+        if (settings.openai_max_tokens) {
+          document.getElementById('openai-max-tokens').value = settings.openai_max_tokens;
+        }
+        if (settings.openai_system_prompt) {
+          document.getElementById('openai-system-prompt').value = settings.openai_system_prompt;
+        }
+
+        // APIキーのマスク表示
+        if (settings.openai_api_key) {
+          const displayEl = document.getElementById('openai-key-display');
+          displayEl.textContent = `現在のキー: ${settings.openai_api_key}`;
+          displayEl.style.display = 'block';
+          document.getElementById('openai-api-key').placeholder = '変更する場合のみ入力（現在のキーは下記）';
+        }
+
+        // Dify フォームに値をセット
+        if (settings.dify_endpoint) {
+          document.getElementById('dify-endpoint').value = settings.dify_endpoint;
+        }
+        if (settings.dify_api_key) {
+          const displayEl = document.getElementById('dify-key-display');
+          displayEl.textContent = `現在のキー: ${settings.dify_api_key}`;
+          displayEl.style.display = 'block';
+          document.getElementById('dify-api-key').placeholder = '変更する場合のみ入力（現在のキーは下記）';
+        }
+
+      } catch (err) {
+        console.error('AI設定の読み込みに失敗しました', err);
+        showToast('AI設定の読み込みに失敗しました', 'error');
+      }
+    }
+
+    // ============================================================
+    // 設定保存
+    // ============================================================
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true; btn.textContent = '保存中...';
+
+      try {
+        // currentProvider はラジオボタンの選択値
+        const body = { provider: currentProvider };
+
+        // none 以外の場合は選択タブの設定値も送信
+        const activeTab = document.querySelector('.provider-tab.active')?.dataset.provider;
+
+        if (activeTab === 'openai' || currentProvider === 'openai') {
+          body.openai_endpoint      = document.getElementById('openai-endpoint').value.trim()      || null;
+          body.openai_model         = document.getElementById('openai-model').value.trim()         || null;
+          body.openai_max_tokens    = parseInt(document.getElementById('openai-max-tokens').value) || 2048;
+          body.openai_system_prompt = document.getElementById('openai-system-prompt').value.trim() || null;
+
+          const apiKey = document.getElementById('openai-api-key').value.trim();
+          if (apiKey) body.openai_api_key = apiKey;
+
+        } else if (activeTab === 'dify' || currentProvider === 'dify') {
+          body.dify_endpoint = document.getElementById('dify-endpoint').value.trim() || null;
+
+          const apiKey = document.getElementById('dify-api-key').value.trim();
+          if (apiKey) body.dify_api_key = apiKey;
+        }
+
+        const res = await api.put('/ai/settings', body);
+        savedSettings = null; // キャッシュクリア
+
+        // APIキー入力欄をクリア（マスク表示を更新するため再読み込み）
+        document.getElementById('openai-api-key').value = '';
+        document.getElementById('dify-api-key').value   = '';
+
+        await loadSettings();
+        showToast('AI設定を保存しました', 'success');
+        clearTestResult();
+
+      } catch (err) {
+        showToast(err.message || '保存に失敗しました', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 設定を保存';
+      }
+    });
+
+    // ============================================================
+    // 接続テスト
+    // ============================================================
+    document.getElementById('btn-test').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-test');
+      btn.disabled = true; btn.textContent = 'テスト中...';
+
+      showTestResult('loading', '⏳ 接続テスト中...');
+
+      try {
+        const res = await api.post('/ai/test', {});
+        const data = res.data;
+
+        let msg = `✅ 接続テスト成功`;
+        if (data.provider) msg += ` — ${data.provider}`;
+        if (data.model)    msg += ` · ${data.model}`;
+        if (data.latency_ms != null) msg += ` · レイテンシ ${data.latency_ms}ms`;
+
+        showTestResult('success', msg);
+
+      } catch (err) {
+        const code = err.code || '';
+        let msg = '❌ ';
+        if (code === 'AI_NOT_CONFIGURED') {
+          msg += 'AIプロバイダーが設定されていません。設定を保存してからテストしてください。';
+        } else if (code === 'AI_AUTH_ERROR') {
+          msg += 'APIキーが無効です。キーを確認してください。';
+        } else if (code === 'AI_TIMEOUT') {
+          msg += 'タイムアウトしました。エンドポイントを確認してください。';
+        } else {
+          msg += err.message || '接続テストに失敗しました。';
+        }
+        showTestResult('error', msg);
+
+      } finally {
+        btn.disabled = false; btn.textContent = '🔌 接続テスト';
+      }
+    });
+
+    // ============================================================
+    // テスト結果表示
+    // ============================================================
+    function showTestResult(type, msg) {
+      const el = document.getElementById('test-result');
+      el.className = `test-result ${type}`;
+      el.textContent = msg;
+    }
+
+    function clearTestResult() {
+      const el = document.getElementById('test-result');
+      el.className = 'test-result';
+      el.textContent = '';
+    }
+
+    // ============================================================
+    // ログアウト
+    // ============================================================
+    document.getElementById('btn-logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // ============================================================
+    // 初期ロード
+    // ============================================================
+    loadSettings();
+  </script>
+</body>
+</html>

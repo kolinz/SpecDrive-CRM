@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商談 — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .stage-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .stage-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      z-index: 200;
+      min-width: 130px;
+      overflow: hidden;
+    }
+    .stage-dropdown-menu.open { display: block; }
+    .stage-dropdown-item {
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .stage-dropdown-item:hover { background: #f0f7ff; }
+    .stage-dropdown-item.current { background: #eff6ff; font-weight: 600; }
+    .stage-badge-btn {
+      cursor: pointer;
+      user-select: none;
+    }
+    .stage-badge-btn:after {
+      content: ' ▾';
+      font-size: 10px;
+      opacity: .7;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item active">💼 商談</a>
+        <a href="/cases.html"          class="nav-item">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <div class="topbar">
+        <span class="topbar-title">商談</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <div class="page-content">
+
+        <!-- ページヘッダー -->
+        <div class="page-header">
+          <div></div>
+          <a href="/opportunity-detail.html" class="btn btn-primary">＋ 新規作成</a>
+        </div>
+
+        <!-- フィルターバー -->
+        <div class="filter-bar">
+          <select class="form-select" id="filter-stage" style="min-width:130px;">
+            <option value="">ステージ（すべて）</option>
+            <option value="prospecting">見込み</option>
+            <option value="qualification">要件確認</option>
+            <option value="proposal">提案中</option>
+            <option value="negotiation">交渉中</option>
+            <option value="closed_won">受注</option>
+            <option value="closed_lost">失注</option>
+          </select>
+          <select class="form-select" id="filter-owner" style="min-width:150px;">
+            <option value="">担当者（すべて）</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-clear">クリア</button>
+          <span class="text-muted" id="result-count" style="font-size:13px;margin-left:auto;"></span>
+        </div>
+
+        <!-- テーブル -->
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>商談名</th>
+                <th>取引先</th>
+                <th>社内担当者</th>
+                <th>ステージ</th>
+                <th style="text-align:right;">金額</th>
+                <th style="text-align:center;">確度</th>
+                <th>クローズ予定日</th>
+              </tr>
+            </thead>
+            <tbody id="opps-tbody">
+              <tr><td colspan="7" class="empty-state">読み込み中...</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" style="padding:10px 14px;background:#f8fafc;font-size:13px;color:var(--text-muted);">
+                  合計
+                </td>
+                <td id="total-amount" style="padding:10px 14px;background:#f8fafc;text-align:right;font-weight:700;font-size:13px;color:var(--primary);">
+                  —
+                </td>
+                <td colspan="2" style="background:#f8fafc;"></td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="pagination" id="pagination" style="display:none;">
+            <span class="pagination-info" id="pagination-info"></span>
+            <div class="pagination-btns">
+              <button class="btn btn-secondary btn-sm" id="btn-prev">← 前へ</button>
+              <button class="btn btn-secondary btn-sm" id="btn-next">次へ →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('opportunities');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentPage = 1;
+    const LIMIT     = 20;
+    let oppsCache   = [];  // 現在表示中のデータ（ステージ変更に使用）
+
+    const STAGES = [
+      { value: 'prospecting',   label: '見込み' },
+      { value: 'qualification', label: '要件確認' },
+      { value: 'proposal',      label: '提案中' },
+      { value: 'negotiation',   label: '交渉中' },
+      { value: 'closed_won',    label: '受注' },
+      { value: 'closed_lost',   label: '失注' },
+    ];
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ============================================================
+    // 担当者セレクト読み込み
+    // ============================================================
+    async function loadOwnerOptions() {
+      try {
+        const res = await api.get('/users');
+        const sel = document.getElementById('filter-owner');
+        (res.data || []).forEach(u => {
+          const opt = document.createElement('option');
+          opt.value       = u.id;
+          opt.textContent = u.name;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('担当者オプション読み込みエラー', err);
+      }
+    }
+
+    // ============================================================
+    // クエリパラメータ構築
+    // ============================================================
+    function getParams() {
+      const p = new URLSearchParams();
+      const stage   = document.getElementById('filter-stage').value;
+      const ownerId = document.getElementById('filter-owner').value;
+      if (stage)   p.set('stage',    stage);
+      if (ownerId) p.set('owner_id', ownerId);
+      p.set('page',  currentPage);
+      p.set('limit', LIMIT);
+      return p.toString();
+    }
+
+    // ============================================================
+    // データ取得・描画
+    // ============================================================
+    async function loadOpportunities() {
+      const tbody = document.getElementById('opps-tbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">読み込み中...</td></tr>';
+      document.getElementById('total-amount').textContent = '—';
+
+      try {
+        const res  = await api.get(`/opportunities?${getParams()}`);
+        const opps = res.data;
+        const meta = res.meta;
+
+        oppsCache = opps || [];
+
+        if (!opps || opps.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state">商談が見つかりません</td></tr>';
+          document.getElementById('pagination').style.display = 'none';
+          document.getElementById('result-count').textContent = '0 件';
+          return;
+        }
+
+        // 金額合計
+        const totalAmt = opps.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+        document.getElementById('total-amount').textContent = formatAmount(totalAmt);
+
+        tbody.innerHTML = opps.map(o => {
+          const accountName = o.account?.name || o.account_name || '—';
+          const ownerName   = o.owner?.name   || o.owner_name   || '—';
+          const closeDateCls = o.close_date && new Date(o.close_date) < new Date()
+            && !['closed_won','closed_lost'].includes(o.stage) ? 'overdue' : '';
+
+          return `
+            <tr data-id="${o.id}">
+              <td>
+                <a href="/opportunity-detail.html?id=${o.id}" class="link-cell">
+                  ${esc(o.name)}
+                </a>
+              </td>
+              <td>
+                ${o.account_id
+                  ? `<a href="/account-detail.html?id=${o.account_id}" class="link-cell">${esc(accountName)}</a>`
+                  : `<span class="text-muted">${esc(accountName)}</span>`}
+              </td>
+              <td class="text-muted">${esc(ownerName)}</td>
+              <td>
+                <div class="stage-dropdown" data-id="${o.id}" data-stage="${o.stage}">
+                  <span class="badge ${stageBadgeClass(o.stage)} stage-badge-btn"
+                        data-id="${o.id}">${stageName(o.stage)}</span>
+                  <div class="stage-dropdown-menu" id="stage-menu-${o.id}">
+                    ${STAGES.map(s => `
+                      <div class="stage-dropdown-item ${s.value === o.stage ? 'current' : ''}"
+                           data-id="${o.id}" data-stage="${s.value}">
+                        ${s.label}
+                      </div>`).join('')}
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:right;">${formatAmount(o.amount)}</td>
+              <td style="text-align:center;">${o.probability != null ? o.probability + '%' : '—'}</td>
+              <td class="${closeDateCls}">${formatDate(o.close_date)}</td>
+            </tr>`;
+        }).join('');
+
+        // ページネーション
+        const total      = meta.total;
+        const totalPages = Math.ceil(total / LIMIT);
+        document.getElementById('result-count').textContent = `${total.toLocaleString()} 件`;
+        document.getElementById('pagination-info').textContent =
+          `${((currentPage - 1) * LIMIT) + 1}〜${Math.min(currentPage * LIMIT, total)} 件 / 全 ${total} 件`;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        document.getElementById('pagination').style.display = total > LIMIT ? 'flex' : 'none';
+
+        // ステージドロップダウン イベント設定
+        bindStageDropdowns();
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state text-danger">読み込みに失敗しました</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // ステージドロップダウン
+    // ============================================================
+    function stageBadgeClass(stage) {
+      const map = {
+        prospecting:   'badge-prospecting',
+        qualification: 'badge-qualification',
+        proposal:      'badge-proposal',
+        negotiation:   'badge-negotiation',
+        closed_won:    'badge-closed-won',
+        closed_lost:   'badge-closed-lost',
+      };
+      return `badge ${map[stage] || ''}`;
+    }
+
+    function bindStageDropdowns() {
+      // バッジクリック → メニュー開閉
+      document.querySelectorAll('.stage-badge-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id   = btn.dataset.id;
+          const menu = document.getElementById(`stage-menu-${id}`);
+          // 他のメニューを閉じる
+          document.querySelectorAll('.stage-dropdown-menu.open').forEach(m => {
+            if (m !== menu) m.classList.remove('open');
+          });
+          menu.classList.toggle('open');
+        });
+      });
+
+      // メニューアイテムクリック → ステージ変更
+      document.querySelectorAll('.stage-dropdown-item').forEach(item => {
+        item.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id    = item.dataset.id;
+          const stage = item.dataset.stage;
+          const menu  = document.getElementById(`stage-menu-${id}`);
+          menu.classList.remove('open');
+
+          try {
+            await api.put(`/opportunities/${id}`, { stage });
+            showToast(`ステージを「${stageName(stage)}」に変更しました`, 'success');
+            loadOpportunities();  // リロード
+          } catch (err) {
+            showToast('ステージの変更に失敗しました', 'error');
+          }
+        });
+      });
+    }
+
+    // ドキュメントクリックでメニューを閉じる
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.stage-dropdown-menu.open').forEach(m => m.classList.remove('open'));
+    });
+
+    // ============================================================
+    // イベント
+    // ============================================================
+    ['filter-stage', 'filter-owner'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        currentPage = 1;
+        loadOpportunities();
+      });
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      document.getElementById('filter-stage').value = '';
+      document.getElementById('filter-owner').value = '';
+      currentPage = 1;
+      loadOpportunities();
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; loadOpportunities(); }
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      currentPage++;
+      loadOpportunities();
+    });
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    (async () => {
+      await loadOwnerOptions();
+      loadOpportunities();
+    })();
+  </script>
+</body>
+</html>

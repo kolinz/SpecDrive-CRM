@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>取引先企業 — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item active">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item">💼 商談</a>
+        <a href="/cases.html"          class="nav-item">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+
+      <!-- トップバー -->
+      <div class="topbar">
+        <span class="topbar-title">取引先企業</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <!-- ページ本体 -->
+      <div class="page-content">
+
+        <!-- ページヘッダー -->
+        <div class="page-header">
+          <div></div>
+          <a href="/account-detail.html" class="btn btn-primary">＋ 新規作成</a>
+        </div>
+
+        <!-- フィルターバー -->
+        <div class="filter-bar">
+          <input
+            class="form-input"
+            type="text"
+            id="search-q"
+            placeholder="企業名で検索..."
+            style="min-width:220px;"
+          >
+          <select class="form-select" id="filter-industry" style="min-width:130px;">
+            <option value="">業種（すべて）</option>
+            <option value="IT">IT</option>
+            <option value="製造">製造</option>
+            <option value="商社">商社</option>
+            <option value="金融">金融</option>
+            <option value="医療">医療</option>
+            <option value="小売">小売</option>
+            <option value="教育">教育</option>
+            <option value="物流">物流</option>
+          </select>
+          <select class="form-select" id="filter-status" style="min-width:130px;">
+            <option value="">ステータス（すべて）</option>
+            <option value="active">アクティブ</option>
+            <option value="prospect">見込み</option>
+            <option value="inactive">無効</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-clear-filter">クリア</button>
+          <span class="text-muted" id="result-count" style="font-size:13px;margin-left:auto;"></span>
+        </div>
+
+        <!-- テーブル -->
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>企業名</th>
+                <th>業種</th>
+                <th>ステータス</th>
+                <th style="text-align:center;">担当者数</th>
+                <th style="text-align:center;">商談数</th>
+                <th>登録日</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody">
+              <tr><td colspan="6" class="empty-state">読み込み中...</td></tr>
+            </tbody>
+          </table>
+
+          <!-- ページネーション -->
+          <div class="pagination" id="pagination" style="display:none;">
+            <span class="pagination-info" id="pagination-info"></span>
+            <div class="pagination-btns">
+              <button class="btn btn-secondary btn-sm" id="btn-prev">← 前へ</button>
+              <button class="btn btn-secondary btn-sm" id="btn-next">次へ →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /main-content -->
+
+  </div><!-- /app-shell -->
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('accounts');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentPage = 1;
+    const LIMIT     = 20;
+    let debounceTimer = null;
+
+    // ============================================================
+    // XSS エスケープ
+    // ============================================================
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ============================================================
+    // フィルター値取得
+    // ============================================================
+    function getParams() {
+      const params = new URLSearchParams();
+      const q        = document.getElementById('search-q').value.trim();
+      const industry = document.getElementById('filter-industry').value;
+      const status   = document.getElementById('filter-status').value;
+      if (q)        params.set('q', q);
+      if (industry) params.set('industry', industry);
+      if (status)   params.set('status', status);
+      params.set('page',  currentPage);
+      params.set('limit', LIMIT);
+      return params.toString();
+    }
+
+    // ============================================================
+    // データ取得・描画
+    // ============================================================
+    async function loadAccounts() {
+      const tbody = document.getElementById('accounts-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">読み込み中...</td></tr>';
+
+      try {
+        const res      = await api.get(`/accounts?${getParams()}`);
+        const accounts = res.data;
+        const meta     = res.meta;
+
+        if (!accounts || accounts.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">取引先が見つかりません</td></tr>';
+          document.getElementById('pagination').style.display = 'none';
+          document.getElementById('result-count').textContent = '0 件';
+          return;
+        }
+
+        tbody.innerHTML = accounts.map(a => `
+          <tr>
+            <td>
+              <a href="/account-detail.html?id=${a.id}" class="link-cell">
+                ${escHtml(a.name)}
+              </a>
+            </td>
+            <td>${escHtml(a.industry || '—')}</td>
+            <td>${statusBadge(a.status)}</td>
+            <td style="text-align:center;">${a.contacts_count ?? 0}</td>
+            <td style="text-align:center;">${a.opportunities_count ?? 0}</td>
+            <td class="text-muted">${formatDate(a.created_at)}</td>
+          </tr>`).join('');
+
+        // ページネーション
+        const total      = meta.total;
+        const totalPages = Math.ceil(total / LIMIT);
+        const paginationEl = document.getElementById('pagination');
+
+        document.getElementById('result-count').textContent = `${total.toLocaleString()} 件`;
+        document.getElementById('pagination-info').textContent =
+          `${((currentPage - 1) * LIMIT) + 1}〜${Math.min(currentPage * LIMIT, total)} 件 / 全 ${total} 件`;
+
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        paginationEl.style.display = total > LIMIT ? 'flex' : 'none';
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-state text-danger">読み込みに失敗しました</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // イベント
+    // ============================================================
+
+    // 検索（debounce 300ms）
+    document.getElementById('search-q').addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        currentPage = 1;
+        loadAccounts();
+      }, 300);
+    });
+
+    // フィルター変更
+    ['filter-industry', 'filter-status'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        currentPage = 1;
+        loadAccounts();
+      });
+    });
+
+    // クリアボタン
+    document.getElementById('btn-clear-filter').addEventListener('click', () => {
+      document.getElementById('search-q').value       = '';
+      document.getElementById('filter-industry').value = '';
+      document.getElementById('filter-status').value   = '';
+      currentPage = 1;
+      loadAccounts();
+    });
+
+    // ページネーション
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; loadAccounts(); }
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      currentPage++;
+      loadAccounts();
+    });
+
+    // ============================================================
+    // 初期ロード
+    // ============================================================
+    loadAccounts();
+  </script>
+</body>
+</html>

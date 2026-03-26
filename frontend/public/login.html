@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ログインページ固有の追加スタイル */
+    .login-form-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .login-btn-wrap {
+      margin-top: 8px;
+    }
+    .login-btn-wrap .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 10px;
+      font-size: 15px;
+    }
+    .login-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+    .demo-accounts {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+    .demo-accounts-title {
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .demo-account-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      cursor: pointer;
+      border-radius: 3px;
+      padding: 4px 6px;
+      transition: background .1s;
+    }
+    .demo-account-row:hover { background: #e5e7eb; }
+    .demo-account-role { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">🗂 Demo CRM</div>
+      <div class="login-subtitle">ログインしてください</div>
+
+      <!-- エラーメッセージ -->
+      <div class="login-error" id="login-error"></div>
+
+      <!-- フォーム -->
+      <div class="form-group">
+        <label class="form-label" for="username">ユーザー名</label>
+        <input
+          class="form-input"
+          type="text"
+          id="username"
+          name="username"
+          placeholder="admin"
+          autocomplete="username"
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">パスワード</label>
+        <input
+          class="form-input"
+          type="password"
+          id="password"
+          name="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        >
+      </div>
+
+      <div class="login-btn-wrap">
+        <button class="btn btn-primary" id="login-btn" type="button">
+          ログイン
+        </button>
+      </div>
+
+      <hr class="login-divider">
+
+      <div class="login-form-footer">Demo CRM v1.2.3</div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // JWT 有効チェック（既にログイン済みなら /index.html へ）
+    // ============================================================
+    (function checkAlreadyLoggedIn() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload.exp && payload.exp * 1000 > Date.now()) {
+          window.location.href = '/index.html';
+        }
+      } catch { /* トークンが壊れていれば無視 */ }
+    })();
+
+    // ============================================================
+    // DOM 要素
+    // ============================================================
+    const usernameEl = document.getElementById('username');
+    const passwordEl = document.getElementById('password');
+    const loginBtn   = document.getElementById('login-btn');
+    const errorEl    = document.getElementById('login-error');
+
+    // ============================================================
+    // エラー表示
+    // ============================================================
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+    function clearError() {
+      errorEl.textContent = '';
+      errorEl.style.display = 'none';
+    }
+
+    // ============================================================
+    // ログイン処理
+    // ============================================================
+    async function doLogin() {
+      clearError();
+
+      const username = usernameEl.value.trim();
+      const password = passwordEl.value;
+
+      // バリデーション
+      if (!username || !password) {
+        showError('ユーザー名とパスワードを入力してください。');
+        if (!username) usernameEl.focus();
+        else           passwordEl.focus();
+        return;
+      }
+
+      loginBtn.disabled    = true;
+      loginBtn.textContent = 'ログイン中...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          // 認証成功 → localStorage に保存してリダイレクト
+          localStorage.setItem('token', data.data.token);
+          localStorage.setItem('user',  JSON.stringify(data.data.user));
+          window.location.href = '/index.html';
+        } else {
+          // 認証失敗（401 / 403）
+          const msg = data?.error?.message || 'ログインに失敗しました。';
+          showError(msg);
+          passwordEl.value = '';
+          passwordEl.focus();
+        }
+      } catch (err) {
+        showError('サーバーに接続できませんでした。しばらくしてから再試行してください。');
+      } finally {
+        loginBtn.disabled    = false;
+        loginBtn.textContent = 'ログイン';
+      }
+    }
+
+    // ============================================================
+    // イベント
+    // ============================================================
+    loginBtn.addEventListener('click', doLogin);
+
+    // Enter キーでログイン
+    [usernameEl, passwordEl].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doLogin();
+      });
+    });
+
+    // 入力時にエラーをクリア
+    [usernameEl, passwordEl].forEach(el => {
+      el.addEventListener('input', clearError);
+    });
+
+    // デモ用アカウントのクリックで自動入力
+    document.querySelectorAll('.demo-account-row').forEach(row => {
+      row.addEventListener('click', () => {
+        usernameEl.value = row.dataset.user;
+        passwordEl.value = row.dataset.pass;
+        clearError();
+        loginBtn.focus();
+      });
+    });
+  </script>
+</body>
+</html>

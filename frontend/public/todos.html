@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ToDo — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .status-cycle-btn {
+      cursor: pointer;
+      user-select: none;
+      transition: opacity .15s;
+    }
+    .status-cycle-btn:hover { opacity: .75; }
+    .status-cycle-btn:after { content: ' ⟳'; font-size: 10px; opacity: .6; }
+
+    .overdue-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      background: var(--white);
+      color: var(--text-muted);
+      transition: background .15s, color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .overdue-toggle.active {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fca5a5;
+      font-weight: 600;
+    }
+    .overdue-toggle input { display: none; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item">💼 商談</a>
+        <a href="/cases.html"          class="nav-item">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item active">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <div class="topbar">
+        <span class="topbar-title">ToDo</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <div class="page-content">
+
+        <!-- ページヘッダー -->
+        <div class="page-header">
+          <div></div>
+          <a href="/todo-detail.html" class="btn btn-primary">＋ 新規作成</a>
+        </div>
+
+        <!-- フィルターバー（1行目） -->
+        <div class="filter-bar" style="margin-bottom:8px;">
+          <select class="form-select" id="filter-status" style="min-width:130px;">
+            <option value="">ステータス（すべて）</option>
+            <option value="open">オープン</option>
+            <option value="in_progress">対応中</option>
+            <option value="done">完了</option>
+            <option value="cancelled">キャンセル</option>
+          </select>
+          <select class="form-select" id="filter-priority" style="min-width:120px;">
+            <option value="">優先度（すべて）</option>
+            <option value="high">高</option>
+            <option value="medium">中</option>
+            <option value="low">低</option>
+          </select>
+          <select class="form-select" id="filter-assignee" style="min-width:140px;">
+            <option value="">担当者（すべて）</option>
+          </select>
+          <label class="overdue-toggle" id="overdue-toggle">
+            <input type="checkbox" id="filter-overdue">
+            ⚠ 期限切れのみ
+          </label>
+          <button class="btn btn-secondary btn-sm" id="btn-clear">クリア</button>
+          <span class="text-muted" id="result-count" style="font-size:13px;margin-left:auto;"></span>
+        </div>
+
+        <!-- フィルターバー（2行目） -->
+        <div class="filter-bar">
+          <select class="form-select" id="filter-opp" style="min-width:180px;">
+            <option value="">関連商談（すべて）</option>
+          </select>
+          <select class="form-select" id="filter-case" style="min-width:180px;">
+            <option value="">関連ケース（すべて）</option>
+          </select>
+        </div>
+
+        <!-- テーブル -->
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>タイトル</th>
+                <th>担当者</th>
+                <th>関連商談</th>
+                <th>関連ケース</th>
+                <th>ステータス</th>
+                <th>優先度</th>
+                <th>期限日</th>
+              </tr>
+            </thead>
+            <tbody id="todos-tbody">
+              <tr><td colspan="7" class="empty-state">読み込み中...</td></tr>
+            </tbody>
+          </table>
+
+          <div class="pagination" id="pagination" style="display:none;">
+            <span class="pagination-info" id="pagination-info"></span>
+            <div class="pagination-btns">
+              <button class="btn btn-secondary btn-sm" id="btn-prev">← 前へ</button>
+              <button class="btn btn-secondary btn-sm" id="btn-next">次へ →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('todos');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentPage = 1;
+    const LIMIT     = 20;
+
+    // ステータスのサイクル順
+    const STATUS_CYCLE = { open: 'in_progress', in_progress: 'done', done: 'done', cancelled: 'cancelled' };
+    const STATUS_CYCLE_LABEL = { open:'対応中へ', in_progress:'完了へ', done:'完了済', cancelled:'キャンセル済' };
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ============================================================
+    // セレクトオプション動的読み込み
+    // ============================================================
+    async function loadFilterOptions() {
+      try {
+        // 担当者
+        const usersRes = await api.get('/users');
+        const assignSel = document.getElementById('filter-assignee');
+        (usersRes.data || []).forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = u.id; opt.textContent = u.name;
+          assignSel.appendChild(opt);
+        });
+      } catch { /* ignore */ }
+
+      try {
+        // 商談
+        const oppsRes = await api.get('/opportunities?limit=100');
+        const oppSel  = document.getElementById('filter-opp');
+        (oppsRes.data || []).forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.id; opt.textContent = o.name;
+          oppSel.appendChild(opt);
+        });
+      } catch { /* ignore */ }
+
+      try {
+        // ケース
+        const casesRes = await api.get('/cases?limit=100');
+        const caseSel  = document.getElementById('filter-case');
+        (casesRes.data || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id; opt.textContent = c.subject;
+          caseSel.appendChild(opt);
+        });
+      } catch { /* ignore */ }
+    }
+
+    // ============================================================
+    // クエリパラメータ構築
+    // ============================================================
+    function getParams() {
+      const p = new URLSearchParams();
+      const status   = document.getElementById('filter-status').value;
+      const priority = document.getElementById('filter-priority').value;
+      const assignee = document.getElementById('filter-assignee').value;
+      const opp      = document.getElementById('filter-opp').value;
+      const cas      = document.getElementById('filter-case').value;
+      const overdue  = document.getElementById('filter-overdue').checked;
+
+      if (status)   p.set('status',         status);
+      if (priority) p.set('priority',        priority);
+      if (assignee) p.set('assignee_id',     assignee);
+      if (opp)      p.set('opportunity_id',  opp);
+      if (cas)      p.set('case_id',         cas);
+      if (overdue)  p.set('overdue',         'true');
+      p.set('page',  currentPage);
+      p.set('limit', LIMIT);
+      return p.toString();
+    }
+
+    // ============================================================
+    // データ取得・描画
+    // ============================================================
+    async function loadTodos() {
+      const tbody = document.getElementById('todos-tbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">読み込み中...</td></tr>';
+
+      try {
+        const res   = await api.get(`/todos?${getParams()}`);
+        const todos = res.data;
+        const meta  = res.meta;
+
+        if (!todos || todos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state">ToDoが見つかりません</td></tr>';
+          document.getElementById('pagination').style.display = 'none';
+          document.getElementById('result-count').textContent = '0 件';
+          return;
+        }
+
+        tbody.innerHTML = todos.map(t => {
+          const assigneeName = t.assignee?.name || t.assignee_name || '—';
+          const oppName      = t.opportunity?.name || t.opportunity_name || '—';
+          const caseName     = t.case?.subject    || t.case_subject      || '—';
+          const hasOpp       = t.opportunity_id;
+          const hasCas       = t.case_id;
+          const isOverdue    = t.due_date
+            && new Date(t.due_date) < new Date()
+            && t.status !== 'done';
+
+          // ステータスセル：次のステータスが存在する場合はクリッカブルに
+          const nextStatus  = STATUS_CYCLE[t.status];
+          const isCyclable  = nextStatus && nextStatus !== t.status;
+          const statusCell  = isCyclable
+            ? `<span class="status-cycle-btn"
+                     data-id="${t.id}" data-next="${nextStatus}"
+                     title="クリックで「${STATUS_CYCLE_LABEL[t.status]}」">
+                 ${statusBadge(t.status)}
+               </span>`
+            : statusBadge(t.status);
+
+          return `
+            <tr data-id="${t.id}">
+              <td>
+                <a href="/todo-detail.html?id=${t.id}" class="link-cell">${esc(t.title)}</a>
+              </td>
+              <td class="text-muted">${esc(assigneeName)}</td>
+              <td>
+                ${hasOpp
+                  ? `<a href="/opportunity-detail.html?id=${t.opportunity_id}" class="link-cell" style="font-size:12px;">${esc(oppName)}</a>`
+                  : '<span class="text-muted">—</span>'}
+              </td>
+              <td>
+                ${hasCas
+                  ? `<a href="/case-detail.html?id=${t.case_id}" class="link-cell" style="font-size:12px;">${esc(caseName)}</a>`
+                  : '<span class="text-muted">—</span>'}
+              </td>
+              <td>${statusCell}</td>
+              <td>${priorityBadge(t.priority)}</td>
+              <td class="${isOverdue ? 'overdue' : ''}">${formatDate(t.due_date)}</td>
+            </tr>`;
+        }).join('');
+
+        // ステータスクリックイベント
+        bindStatusCycle();
+
+        // ページネーション
+        const total      = meta.total;
+        const totalPages = Math.ceil(total / LIMIT);
+        document.getElementById('result-count').textContent = `${total.toLocaleString()} 件`;
+        document.getElementById('pagination-info').textContent =
+          `${((currentPage - 1) * LIMIT) + 1}〜${Math.min(currentPage * LIMIT, total)} 件 / 全 ${total} 件`;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        document.getElementById('pagination').style.display = total > LIMIT ? 'flex' : 'none';
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state text-danger">読み込みに失敗しました</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // ステータスワンクリック変更
+    // ============================================================
+    function bindStatusCycle() {
+      document.querySelectorAll('.status-cycle-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id         = btn.dataset.id;
+          const nextStatus = btn.dataset.next;
+          btn.style.opacity = '0.4';
+          try {
+            await api.put(`/todos/${id}`, { status: nextStatus });
+            const STATUS_LABELS = { in_progress:'対応中', done:'完了', open:'オープン' };
+            showToast(`ステータスを「${STATUS_LABELS[nextStatus] || nextStatus}」に変更しました`, 'success');
+            loadTodos();
+          } catch (err) {
+            showToast('ステータスの変更に失敗しました', 'error');
+            btn.style.opacity = '1';
+          }
+        });
+      });
+    }
+
+    // ============================================================
+    // 期限切れトグル
+    // ============================================================
+    const overdueToggle = document.getElementById('overdue-toggle');
+    const overdueCheck  = document.getElementById('filter-overdue');
+
+    overdueToggle.addEventListener('click', () => {
+      overdueCheck.checked = !overdueCheck.checked;
+      overdueToggle.classList.toggle('active', overdueCheck.checked);
+      currentPage = 1;
+      loadTodos();
+    });
+
+    // ============================================================
+    // イベント
+    // ============================================================
+    ['filter-status','filter-priority','filter-assignee','filter-opp','filter-case'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        currentPage = 1;
+        loadTodos();
+      });
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      document.getElementById('filter-status').value   = '';
+      document.getElementById('filter-priority').value = '';
+      document.getElementById('filter-assignee').value = '';
+      document.getElementById('filter-opp').value      = '';
+      document.getElementById('filter-case').value     = '';
+      overdueCheck.checked = false;
+      overdueToggle.classList.remove('active');
+      currentPage = 1;
+      loadTodos();
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; loadTodos(); }
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      currentPage++;
+      loadTodos();
+    });
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    (async () => {
+      await loadFilterOptions();
+      loadTodos();
+    })();
+  </script>
+</body>
+</html>

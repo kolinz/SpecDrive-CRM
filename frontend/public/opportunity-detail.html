@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商談詳細 — Demo CRM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🗂 Demo CRM</div>
+      <nav class="sidebar-nav">
+        <a href="/index.html"          class="nav-item">📊 ダッシュボード</a>
+        <a href="/accounts.html"       class="nav-item">🏢 取引先企業</a>
+        <a href="/contacts.html"       class="nav-item">👤 担当者</a>
+        <a href="/opportunities.html"  class="nav-item active">💼 商談</a>
+        <a href="/cases.html"          class="nav-item">🎫 ケース</a>
+        <a href="/todos.html"          class="nav-item">✅ ToDo</a>
+        <hr class="nav-separator">
+        <a href="/admin-ui/users.html" class="nav-item" id="nav-admin-link" style="display:none">⚙️ システム管理 →</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="nav-user-name">—</div>
+        <div class="sidebar-user-role" id="nav-user-role">—</div>
+        <a href="#" id="btn-logout" style="font-size:11px;color:#93b8d4;margin-top:6px;display:inline-block;">ログアウト</a>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <div class="topbar">
+        <span class="topbar-title" id="topbar-title">商談</span>
+        <span class="topbar-spacer"></span>
+        <span class="topbar-user" id="topbar-user"></span>
+        <button class="btn-ai" id="btn-ai">✦ AI助言</button>
+      </div>
+
+      <div class="page-content">
+
+        <!-- パンくず -->
+        <div class="breadcrumb">
+          <a href="/opportunities.html">商談一覧</a>
+          <span class="breadcrumb-sep">›</span>
+          <span id="breadcrumb-current">新規作成</span>
+        </div>
+
+        <!-- 詳細ヘッダー -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <div class="detail-title" id="detail-title">新規商談</div>
+          </div>
+          <div class="detail-actions" id="detail-actions"></div>
+        </div>
+
+        <!-- フォームセクション -->
+        <div class="detail-section">
+          <div class="detail-section-title">商談情報</div>
+          <div id="form-area"></div>
+        </div>
+
+        <!-- 関連ToDo（表示・編集モードのみ） -->
+        <div id="todos-section" style="display:none;">
+          <div class="detail-section">
+            <div class="card-header" style="padding:0 0 12px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
+              <span class="detail-section-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">関連 ToDo</span>
+              <a id="btn-new-todo" href="#" class="btn btn-primary btn-sm">＋ ToDo新規作成</a>
+            </div>
+            <div id="todos-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/ai-panel.js"></script>
+  <script>
+    guardCRM();
+    renderNavUserInfo();
+    renderAdminNavLink();
+    initAiPanel('opportunities');
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    const urlParams    = new URLSearchParams(location.search);
+    const oppId        = urlParams.get('id')         ? parseInt(urlParams.get('id'))         : null;
+    const preAccountId = urlParams.get('account_id') ? parseInt(urlParams.get('account_id')) : null;
+    let   mode         = oppId ? 'view' : 'new';
+    let   oppData      = null;
+    let   usersCache   = [];
+
+    // 検索セレクト用の選択値
+    let selAccountId   = preAccountId || null;
+    let selAccountName = '';
+    let selContactId   = null;
+    let selContactName = '';
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function val(v) { return (v === null || v === undefined) ? '' : v; }
+
+    const STAGES = [
+      ['prospecting','見込み'],['qualification','要件確認'],['proposal','提案中'],
+      ['negotiation','交渉中'],['closed_won','受注'],['closed_lost','失注'],
+    ];
+    const LEAD_SOURCES = [
+      ['','—'],['web','Web'],['referral','紹介'],['event','イベント'],
+      ['cold_call','コールドコール'],['email','メール'],['other','その他'],
+    ];
+
+    // ============================================================
+    // ユーザー一覧取得
+    // ============================================================
+    async function loadUsers() {
+      try {
+        const res = await api.get('/users');
+        usersCache = res.data || [];
+      } catch { usersCache = []; }
+    }
+
+    function userOptions(selectedId) {
+      return [
+        '<option value="">— 未設定 —</option>',
+        ...usersCache.map(u =>
+          `<option value="${u.id}" ${u.id == selectedId ? 'selected' : ''}>${esc(u.name)}</option>`)
+      ].join('');
+    }
+
+    // ============================================================
+    // 表示フォーム
+    // ============================================================
+    function buildViewForm(d) {
+      const contactName = d.contact
+        ? `${d.contact.last_name || ''} ${d.contact.first_name || ''}`.trim()
+        : null;
+      const leadLabel = { web:'Web', referral:'紹介', event:'イベント',
+        cold_call:'コールドコール', email:'メール', other:'その他' };
+      return `
+        <div class="form-grid-2">
+          <div class="form-group" style="grid-column:1/-1;">
+            <div class="field-view-label">商談名 <span style="color:var(--danger)">*</span></div>
+            <div class="field-view-value">${esc(d.name) || '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">取引先</div>
+            <div class="field-view-value">
+              ${d.account_id
+                ? `<a href="/account-detail.html?id=${d.account_id}" style="color:var(--accent)">${esc(d.account?.name || '—')}</a>`
+                : '—'}
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">主要連絡先</div>
+            <div class="field-view-value">
+              ${d.contact_id
+                ? `<a href="/contact-detail.html?id=${d.contact_id}" style="color:var(--accent)">${esc(contactName)}</a>`
+                : '—'}
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">社内担当者</div>
+            <div class="field-view-value">${esc(d.owner?.name || '—')}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">ステージ</div>
+            <div class="field-view-value">${stageBadge(d.stage)}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">金額</div>
+            <div class="field-view-value">${d.amount != null ? formatAmount(d.amount) : '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">受注確度</div>
+            <div class="field-view-value">${d.probability != null ? d.probability + '%' : '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">クローズ予定日</div>
+            <div class="field-view-value">${formatDate(d.close_date)}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">リードソース</div>
+            <div class="field-view-value">${leadLabel[d.lead_source] || d.lead_source || '—'}</div>
+          </div>
+          <div class="form-group">
+            <div class="field-view-label">キャンペーン</div>
+            <div class="field-view-value">${esc(d.campaign) || '—'}</div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <div class="field-view-label">次のアクション</div>
+            <div class="field-view-value" style="white-space:pre-wrap;">${esc(d.next_step) || '—'}</div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <div class="field-view-label">説明</div>
+            <div class="field-view-value" style="white-space:pre-wrap;">${esc(d.description) || '—'}</div>
+          </div>
+        </div>`;
+    }
+
+    // ============================================================
+    // 編集フォーム
+    // ============================================================
+    function buildEditForm(d) {
+      const stageOpts = STAGES.map(([v,l]) =>
+        `<option value="${v}" ${val(d.stage) === v ? 'selected' : ''}>${l}</option>`).join('');
+      const lsOpts = LEAD_SOURCES.map(([v,l]) =>
+        `<option value="${v}" ${val(d.lead_source) === v ? 'selected' : ''}>${l}</option>`).join('');
+
+      return `
+        <div class="form-grid-2">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">商談名 <span class="required">*</span></label>
+            <input class="form-input" id="f-name" type="text" value="${esc(val(d.name))}" placeholder="クラウド移行支援PJ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">取引先</label>
+            <div class="search-select-wrapper">
+              <input class="search-select" id="f-account-input" type="text"
+                placeholder="取引先名を検索..." autocomplete="off">
+              <div id="f-account-list"></div>
+            </div>
+            <input type="hidden" id="f-account-id">
+          </div>
+          <div class="form-group">
+            <label class="form-label">主要連絡先</label>
+            <div class="search-select-wrapper">
+              <input class="search-select" id="f-contact-input" type="text"
+                placeholder="取引先を選択後に絞り込み..." autocomplete="off">
+              <div id="f-contact-list"></div>
+            </div>
+            <input type="hidden" id="f-contact-id">
+          </div>
+          <div class="form-group">
+            <label class="form-label">社内担当者</label>
+            <select class="form-select" id="f-owner">${userOptions(d.owner_id)}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ステージ <span class="required">*</span></label>
+            <select class="form-select" id="f-stage">${stageOpts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">金額（円）</label>
+            <input class="form-input" id="f-amount" type="number" min="0"
+              value="${val(d.amount)}" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">受注確度（%）</label>
+            <input class="form-input" id="f-probability" type="number" min="0" max="100"
+              value="${val(d.probability)}" placeholder="0〜100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">クローズ予定日</label>
+            <input class="form-input" id="f-close-date" type="date"
+              value="${val(d.close_date) ? val(d.close_date).slice(0,10) : ''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">リードソース</label>
+            <select class="form-select" id="f-lead-source">${lsOpts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">キャンペーン</label>
+            <input class="form-input" id="f-campaign" type="text"
+              value="${esc(val(d.campaign))}" placeholder="キャンペーン名">
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">次のアクション</label>
+            <textarea class="form-textarea" id="f-next-step" rows="2"
+              placeholder="次に取るべきアクション">${esc(val(d.next_step))}</textarea>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">説明</label>
+            <textarea class="form-textarea" id="f-description" rows="3"
+              placeholder="商談の詳細説明">${esc(val(d.description))}</textarea>
+          </div>
+        </div>`;
+    }
+
+    // ============================================================
+    // 編集フォーム後処理（searchSelect 初期化）
+    // ============================================================
+    async function initEditForm(d) {
+      // ---- 取引先 searchSelect ----
+      const accInput  = document.getElementById('f-account-input');
+      const accList   = document.getElementById('f-account-list');
+      const accHidden = document.getElementById('f-account-id');
+
+      const accSS = searchSelect({
+        inputEl: accInput,
+        listEl:  accList,
+        fetchFn: async (q) => {
+          const res = await api.get(`/accounts?q=${encodeURIComponent(q)}&limit=20`);
+          return (res.data || []).map(a => ({ id: a.id, label: a.name }));
+        },
+        onSelect: (item) => {
+          selAccountId   = item.id;
+          selAccountName = item.label;
+          accHidden.value = item.id;
+          // 取引先変更時：連絡先をリセット
+          selContactId   = null;
+          selContactName = '';
+          const ci = document.getElementById('f-contact-input');
+          const ch = document.getElementById('f-contact-id');
+          if (ci) ci.value = '';
+          if (ch) ch.value = '';
+        },
+      });
+
+      // 既存値のセット
+      const initAccId   = d.account_id   || selAccountId;
+      const initAccName = d.account?.name || selAccountName;
+      if (initAccId && initAccName) {
+        accSS.setValue(initAccId, initAccName);
+        selAccountId   = initAccId;
+        selAccountName = initAccName;
+        accHidden.value = initAccId;
+      }
+      accInput.addEventListener('input', () => {
+        if (!accInput.value.trim()) {
+          selAccountId = null;
+          accHidden.value = '';
+        }
+      });
+
+      // ---- 主要連絡先 searchSelect ----
+      const conInput  = document.getElementById('f-contact-input');
+      const conList   = document.getElementById('f-contact-list');
+      const conHidden = document.getElementById('f-contact-id');
+
+      const conSS = searchSelect({
+        inputEl: conInput,
+        listEl:  conList,
+        fetchFn: async (q) => {
+          // 選択中の取引先で絞り込む
+          const aid = accHidden.value || selAccountId || '';
+          const params = new URLSearchParams();
+          if (q)   params.set('q', q);
+          if (aid) params.set('account_id', aid);
+          params.set('limit', '30');
+          const res = await api.get(`/contacts?${params.toString()}`);
+          return (res.data || []).map(c => ({
+            id:    c.id,
+            label: `${c.last_name || ''} ${c.first_name || ''}`.trim(),
+          }));
+        },
+        onSelect: (item) => {
+          selContactId   = item.id;
+          selContactName = item.label;
+          conHidden.value = item.id;
+        },
+      });
+
+      // 既存値のセット
+      const initConId = d.contact_id;
+      const initConName = d.contact
+        ? `${d.contact.last_name || ''} ${d.contact.first_name || ''}`.trim()
+        : selContactName;
+      if (initConId && initConName) {
+        conSS.setValue(initConId, initConName);
+        selContactId    = initConId;
+        selContactName  = initConName;
+        conHidden.value = initConId;
+      }
+      conInput.addEventListener('input', () => {
+        if (!conInput.value.trim()) {
+          selContactId = null;
+          conHidden.value = '';
+        }
+      });
+    }
+
+    // ============================================================
+    // アクションボタン
+    // ============================================================
+    function renderActions() {
+      const el = document.getElementById('detail-actions');
+      if (mode === 'view') {
+        el.innerHTML = `
+          <button class="btn btn-secondary" id="btn-edit">編集</button>
+          <button class="btn btn-danger"    id="btn-delete">削除</button>`;
+        document.getElementById('btn-edit').addEventListener('click', async () => {
+          mode = 'edit';
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildEditForm(oppData);
+          await initEditForm(oppData);
+        });
+        document.getElementById('btn-delete').addEventListener('click', doDelete);
+      } else {
+        el.innerHTML = `
+          <button class="btn btn-primary"   id="btn-save">保存</button>
+          <button class="btn btn-secondary" id="btn-cancel">キャンセル</button>`;
+        document.getElementById('btn-save').addEventListener('click', doSave);
+        document.getElementById('btn-cancel').addEventListener('click', doCancel);
+      }
+    }
+
+    // ============================================================
+    // キャンセル
+    // ============================================================
+    function doCancel() {
+      if (mode === 'new') {
+        window.location.href = '/opportunities.html';
+      } else {
+        mode = 'view';
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildViewForm(oppData);
+      }
+    }
+
+    // ============================================================
+    // 保存
+    // ============================================================
+    async function doSave() {
+      const name  = document.getElementById('f-name').value.trim();
+      const stage = document.getElementById('f-stage').value;
+      if (!name || !stage) {
+        showToast('商談名・ステージは必須です', 'error');
+        return;
+      }
+
+      const accInput = document.getElementById('f-account-input').value.trim();
+      const conInput = document.getElementById('f-contact-input').value.trim();
+      const accId    = accInput ? (document.getElementById('f-account-id').value || null) : null;
+      const conId    = conInput ? (document.getElementById('f-contact-id').value || null) : null;
+      const ownerId  = document.getElementById('f-owner').value || null;
+      const amtVal   = document.getElementById('f-amount').value;
+      const probVal  = document.getElementById('f-probability').value;
+
+      const body = {
+        name,
+        stage,
+        account_id:   accId   ? parseInt(accId)   : null,
+        contact_id:   conId   ? parseInt(conId)   : null,
+        owner_id:     ownerId ? parseInt(ownerId) : null,
+        amount:       amtVal  !== '' ? parseFloat(amtVal)  : null,
+        probability:  probVal !== '' ? parseInt(probVal)   : null,
+        close_date:   document.getElementById('f-close-date').value   || null,
+        lead_source:  document.getElementById('f-lead-source').value  || null,
+        campaign:     document.getElementById('f-campaign').value.trim()   || null,
+        next_step:    document.getElementById('f-next-step').value.trim()  || null,
+        description:  document.getElementById('f-description').value.trim() || null,
+      };
+
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true; btn.textContent = '保存中...';
+
+      try {
+        if (mode === 'new') {
+          const res = await api.post('/opportunities', body);
+          showToast('商談を作成しました', 'success');
+          window.location.href = `/opportunity-detail.html?id=${res.data.id}`;
+        } else {
+          await api.put(`/opportunities/${oppId}`, body);
+          const detail = await api.get(`/opportunities/${oppId}`);
+          oppData = detail.data;
+          mode = 'view';
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(oppData);
+          updateTitles(oppData.name);
+          showToast('保存しました', 'success');
+        }
+      } catch (err) {
+        showToast(err.message || '保存に失敗しました', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '保存';
+      }
+    }
+
+    // ============================================================
+    // 削除
+    // ============================================================
+    function doDelete() {
+      showConfirm({
+        title:   '商談を削除',
+        message: `「${oppData.name}」を削除します。この操作は元に戻せません。`,
+        onConfirm: async () => {
+          try {
+            await api.del(`/opportunities/${oppId}`);
+            showToast('削除しました', 'success');
+            setTimeout(() => { window.location.href = '/opportunities.html'; }, 800);
+          } catch (err) {
+            showToast(err.message || '削除に失敗しました', 'error');
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // タイトル更新
+    // ============================================================
+    function updateTitles(name) {
+      const label = name || '商談';
+      document.title = `${label} — Demo CRM`;
+      document.getElementById('detail-title').textContent       = label;
+      document.getElementById('breadcrumb-current').textContent  = label;
+      document.getElementById('topbar-title').textContent        = label;
+    }
+
+    // ============================================================
+    // 関連ToDo
+    // ============================================================
+    async function loadTodos() {
+      const section  = document.getElementById('todos-section');
+      const listEl   = document.getElementById('todos-list');
+      const newTodoBtn = document.getElementById('btn-new-todo');
+
+      section.style.display = '';
+      if (newTodoBtn) newTodoBtn.href = `/todo-detail.html?opportunity_id=${oppId}`;
+
+      try {
+        const res   = await api.get(`/todos?opportunity_id=${oppId}&limit=50`);
+        const todos = res.data || [];
+
+        if (!todos.length) {
+          listEl.innerHTML = '<div class="empty-state">ToDoがありません</div>';
+          return;
+        }
+
+        listEl.innerHTML = `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>タイトル</th>
+                <th>担当者</th>
+                <th>ステータス</th>
+                <th>優先度</th>
+                <th>期限日</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${todos.map(t => {
+                const overdue = t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done';
+                return `
+                  <tr style="cursor:pointer;" onclick="location.href='/todo-detail.html?id=${t.id}'">
+                    <td class="link-cell">${esc(t.title)}</td>
+                    <td class="text-muted">${esc(t.assignee?.name || t.assignee_name || '—')}</td>
+                    <td>${statusBadge(t.status)}</td>
+                    <td>${priorityBadge(t.priority)}</td>
+                    <td class="${overdue ? 'overdue' : ''}">${formatDate(t.due_date)}</td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`;
+      } catch (err) {
+        listEl.innerHTML = '<div class="empty-state text-danger">ToDoの読み込みに失敗しました</div>';
+      }
+    }
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    async function init() {
+      await loadUsers();
+
+      if (mode === 'new') {
+        // account_id がある場合、取引先名を事前取得
+        if (preAccountId) {
+          try {
+            const res = await api.get(`/accounts/${preAccountId}`);
+            selAccountName = res.data.name;
+          } catch { /* ignore */ }
+        }
+        renderActions();
+        document.getElementById('form-area').innerHTML = buildEditForm({
+          account_id: preAccountId,
+          account:    selAccountName ? { name: selAccountName } : null,
+        });
+        await initEditForm({
+          account_id: preAccountId,
+          account:    selAccountName ? { name: selAccountName } : null,
+        });
+      } else {
+        try {
+          const res = await api.get(`/opportunities/${oppId}`);
+          oppData   = res.data;
+          updateTitles(oppData.name);
+          renderActions();
+          document.getElementById('form-area').innerHTML = buildViewForm(oppData);
+          loadTodos();
+        } catch (err) {
+          document.getElementById('form-area').innerHTML =
+            '<div class="empty-state text-danger">商談の読み込みに失敗しました</div>';
+          console.error(err);
+        }
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
