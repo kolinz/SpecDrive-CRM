@@ -1,4 +1,4 @@
-# Demo CRM 実装プロンプト集
+# SpecDrive CRM 実装プロンプト集
 
 **バージョン:** 1.2.4  
 **対象仕様書:** crm-sdd-spec-v1.2.4.md  
@@ -198,9 +198,9 @@ INSERT INTO ai_settings (id, provider) VALUES (1, 'none') ON CONFLICT DO NOTHING
 
 ```json
 {
-  "name": "demo-crm-api",
+  "name": "specdrive-crm-api",
   "version": "0.1.0",
-  "description": "Demo CRM Backend API",
+  "description": "SpecDrive CRM Backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -325,9 +325,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Demo CRM API',
+      title: 'SpecDrive CRM API',
       version: '0.1.0',
-      description: 'Demo CRM REST API ドキュメント',
+      description: 'SpecDrive CRM REST API ドキュメント',
     },
     servers: [
       { url: '/api', description: 'API サーバー' },
@@ -935,7 +935,7 @@ CMD ["node", "server.js"]
 以下の内容で作成すること:
 
 # ===================================================
-# Demo CRM - 環境変数設定
+# SpecDrive CRM - 環境変数設定
 # cp .env.example .env してから値を編集してください
 # ===================================================
 
@@ -1109,7 +1109,7 @@ AI助言サイドパネルの共通処理を実装すること:
 
 ## UI
 - 画面中央にログインカードを配置する
-- ロゴ（Demo CRM）をカード上部に表示する
+- ロゴ（SpecDrive CRM）をカード上部に表示する
 - 入力フィールド: ユーザー名（id="username"）/ パスワード（id="password"）
 - ログインボタン
 - エラーメッセージ表示エリア
@@ -1578,7 +1578,7 @@ critical=赤 / high=橙 / medium=黄 / low=緑
 
 ## レイアウト（仕様書 8.2 のシステム管理画面レイアウト）
 - CRM業務画面とは独立したレイアウト（AI助言サイドパネルなし）
-- ヘッダー: 「Demo CRM  システム管理」+ ユーザー名 + ログアウト
+- ヘッダー: 「SpecDrive CRM  システム管理」+ ユーザー名 + ログアウト
 - 左サイドバー:「ユーザー管理」（アクティブ）/「AI接続設定」/「← CRM業務へ（/index.html）」
 
 ## テーブル表示項目
@@ -1617,7 +1617,7 @@ critical=赤 / high=橙 / medium=黄 / low=緑
 
 ## レイアウト
 SCR-013 と同様のシステム管理画面レイアウト:
-- ヘッダー: 「Demo CRM  システム管理」+ ユーザー名 + ログアウト
+- ヘッダー: 「SpecDrive CRM  システム管理」+ ユーザー名 + ログアウト
 - 左サイドバー:「ユーザー管理」（アクティブ）/「AI接続設定」/「← CRM業務へ（/index.html）」
 
 ## 3モードの実装
@@ -1665,7 +1665,7 @@ SCR-013 と同様のシステム管理画面レイアウト:
 
 ## レイアウト
 SCR-013 と同様のシステム管理画面レイアウト:
-- ヘッダー: 「Demo CRM  システム管理」+ ユーザー名 + ログアウト
+- ヘッダー: 「SpecDrive CRM  システム管理」+ ユーザー名 + ログアウト
 - 左サイドバー:「ユーザー管理」/「AI接続設定」（アクティブ）/「← CRM業務へ（/index.html）」
 
 ## 画面起動時
