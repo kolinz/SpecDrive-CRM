@@ -1,9 +1,18 @@
 # SpecDrive-CRM
 
-Docker Compose で起動する CRM（顧客関係管理）デモシステムです。  
+Docker Compose で起動する CRM（顧客関係管理）デモシステムです。開発手法として、「Spec-Driven Development（仕様駆動開発）」を採用しています。SDDのためのドキュメントは、下記３つになります。
 
+---
+## SDD（仕様駆動開発）のためのドキュメント
+| ドキュメント | 説明 |
+|---|---|
+| [システム仕様書 v1.2.4](docs/crm-sdd-spec-v1.2.4.md) | アーキテクチャ・データモデル・API・画面仕様の全詳細 |
+| [実装プロンプト集 v1.2.4](docs/crm-impl-prompts-v1.2.4.md) | AI コーディングアシスタント向け実装プロンプト |
+| [プロジェクトプロンプト v1.2.4](docs/project-prompt-v1.2.4.md) | 生成AIで実装する際に用いるシステムプロンプトのこと |
+---
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+![ダッシュボード画面](docs/thumbnail-dashboard.png "サンプル")
 ---
 
 ## 機能
@@ -221,18 +230,6 @@ demo-crm/
     ├── crm-sdd-spec-v1.2.4.md     # システム仕様書
     └── project-prompt-v1.2.4.md # プロジェクトプロンプト
 ```
-
----
-
-## ドキュメント
-### SDD（仕様駆動開発）のためのドキュメント
-| ドキュメント | 説明 |
-|---|---|
-| [システム仕様書 v1.2.4](docs/crm-sdd-spec-v1.2.4.md) | アーキテクチャ・データモデル・API・画面仕様の全詳細 |
-| [実装プロンプト集 v1.2.4](docs/crm-impl-prompts-v1.2.4.md) | AI コーディングアシスタント向け実装プロンプト（全 28 フェーズ） |
-| [プロジェクトプロンプト v1.2.4](docs/project-prompt-v1.2.4.md) | 生成AIで実装する際に用いるシステムプロンプトのこと |
-
----
 
 ## ライセンス
 
