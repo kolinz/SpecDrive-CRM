@@ -1,4 +1,4 @@
-# SpecDrive-CRM
+# SpecDrive CRM
 
 Docker Compose で起動する CRM（顧客関係管理）デモシステムです。開発手法として、「Spec-Driven Development（仕様駆動開発）」を採用しています。SDDのためのドキュメントは、下記３つになります。
 
