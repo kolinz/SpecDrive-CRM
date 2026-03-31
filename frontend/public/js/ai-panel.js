@@ -3,13 +3,42 @@
  */
 
 const SUGGESTIONS = {
-  dashboard:     ['受注確度の高い商談トップ5を教えて', '未解決の緊急ケースを一覧にして', '期限切れToDoを担当者別にまとめて'],
-  opportunities: ['受注確度の高い商談を上位5件教えて', '今月クローズ予定の商談は？', 'ステージ別に商談を整理して'],
-  cases:         ['緊急・高優先度のケースを一覧にして', '未解決ケースを担当者別にまとめて', '対応期限切れのケースは？'],
-  todos:         ['期限切れToDoを優先度順に教えて', '担当者別の未完了タスク数は？', '今週中に完了すべきToDoは？'],
-  accounts:      ['取引額の大きい取引先トップ5は？', 'フォローが必要な見込み企業を教えて', '業種別の取引先数を教えて'],
-  contacts:      ['各企業のキーパーソンを一覧にして', '主要担当者（is_primary）を教えて'],
+  dashboard:     ['今月の業績サマリーを教えて', '注目すべき商談は？', '期限切れToDoを整理して'],
+  opportunities: ['各商談の次にとるべきアクションを教えて', '受注確度の高い商談を教えて', 'クローズ日が近い商談のリスクは？'],
+  cases:         ['対応が遅れているケースを優先順に並べて', '緊急対応が必要なケースは？', '担当者の負荷状況は？'],
+  todos:         ['期限切れToDoの対処方針を担当者別に提案して', '担当者別の負荷バランスは？', '今週完了すべき優先タスクは？'],
+  accounts:      ['売上規模別にフォロー優先度を提案して', '最も取引額の大きい企業は？'],
+  contacts:      ['キーパーソンを特定して', '連絡が取れていない担当者は？'],
 };
+
+// v1.2.5: レコード詳細コンテキスト定義
+const RECORD_ENDPOINTS = {
+  opportunities: '/opportunities?limit=50',
+  cases:         '/cases?limit=50',
+  accounts:      '/accounts?limit=50',
+  todos:         '/todos?limit=50',
+};
+
+const RECORD_FIELDS = {
+  opportunities: ['id','name','stage','amount','probability','close_date','next_step','description'],
+  cases:         ['id','subject','status','priority','category','due_date','description'],
+  accounts:      ['id','name','industry','status','annual_revenue','employee_count'],
+  todos:         ['id','title','status','priority','due_date'],
+};
+
+function extractRecord(record, fields) {
+  const obj = {};
+  fields.forEach(f => { obj[f] = record[f] ?? null; });
+  // ネストされた名前フィールドを文字列に展開
+  if (record.owner)        obj.owner        = record.owner?.name        ?? null;
+  if (record.assigned_to || record.assigned_user)
+                           obj.assigned_to  = record.assigned_to?.name  ?? record.assigned_user?.name ?? null;
+  if (record.assignee)     obj.assignee     = record.assignee?.name     ?? null;
+  if (record.account)      obj.account      = record.account?.name      ?? record.account_name ?? null;
+  if (record.opportunity)  obj.opportunity  = record.opportunity?.name  ?? null;
+  if (record.case)         obj.case         = record.case?.subject      ?? null;
+  return obj;
+}
 
 const ERROR_MESSAGES = {
   AI_NOT_CONFIGURED: 'AI助言が設定されていません。管理者にお問い合わせください。',
@@ -83,43 +112,14 @@ function initAiPanel(page) {
       context = { page };
     }
 
-    // ページ別に詳細データも追加取得してコンテキストに含める
-    try {
-      const isDashboard = page === 'dashboard';
-
-      // ダッシュボードは全エンティティを並列取得
-      if (isDashboard) {
-        const [oppsRes, casesRes, todosRes, accountsRes, contactsRes] = await Promise.all([
-          window.api.get('/opportunities?limit=100'),
-          window.api.get('/cases?limit=100'),
-          window.api.get('/todos?limit=100'),
-          window.api.get('/accounts?limit=100'),
-          window.api.get('/contacts?limit=100'),
-        ]);
-        context.opportunities = (oppsRes.data     || []).map(o => ({ id: o.id, name: o.name, account: o.account?.name || o.account_name, owner: o.owner?.name || o.owner_name, stage: o.stage, amount: o.amount, probability: o.probability, close_date: o.close_date, lead_source: o.lead_source, next_step: o.next_step }));
-        context.cases         = (casesRes.data    || []).map(c => ({ id: c.id, subject: c.subject, account: c.account?.name || c.account_name, assigned_to: c.assigned_user?.name || c.assigned_user_name, status: c.status, priority: c.priority, category: c.category, due_date: c.due_date }));
-        context.todos         = (todosRes.data    || []).map(t => ({ id: t.id, title: t.title, assignee: t.assignee?.name || t.assignee_name, status: t.status, priority: t.priority, due_date: t.due_date, opportunity: t.opportunity?.name, case: t.case?.subject }));
-        context.accounts      = (accountsRes.data || []).map(a => ({ id: a.id, name: a.name, industry: a.industry, status: a.status, annual_revenue: a.annual_revenue, employee_count: a.employee_count, contacts_count: a.contacts_count, opportunities_count: a.opportunities_count }));
-        context.contacts      = (contactsRes.data || []).map(c => ({ id: c.id, name: `${c.last_name} ${c.first_name}`, account: c.account_name, title: c.title, department: c.department, email: c.email }));
-      } else {
-        if (page === 'opportunities') {
-          const res = await window.api.get('/opportunities?limit=100');
-          context.opportunities = (res.data || []).map(o => ({ id: o.id, name: o.name, account: o.account?.name || o.account_name, owner: o.owner?.name || o.owner_name, stage: o.stage, amount: o.amount, probability: o.probability, close_date: o.close_date, lead_source: o.lead_source, next_step: o.next_step }));
-        } else if (page === 'cases') {
-          const res = await window.api.get('/cases?limit=100');
-          context.cases = (res.data || []).map(c => ({ id: c.id, subject: c.subject, account: c.account?.name || c.account_name, assigned_to: c.assigned_user?.name || c.assigned_user_name, status: c.status, priority: c.priority, category: c.category, due_date: c.due_date }));
-        } else if (page === 'todos') {
-          const res = await window.api.get('/todos?limit=100');
-          context.todos = (res.data || []).map(t => ({ id: t.id, title: t.title, assignee: t.assignee?.name || t.assignee_name, status: t.status, priority: t.priority, due_date: t.due_date, opportunity: t.opportunity?.name, case: t.case?.subject }));
-        } else if (page === 'accounts') {
-          const res = await window.api.get('/accounts?limit=100');
-          context.accounts = (res.data || []).map(a => ({ id: a.id, name: a.name, industry: a.industry, status: a.status, annual_revenue: a.annual_revenue, employee_count: a.employee_count, contacts_count: a.contacts_count, opportunities_count: a.opportunities_count }));
-        } else if (page === 'contacts') {
-          const res = await window.api.get('/contacts?limit=100');
-          context.contacts = (res.data || []).map(c => ({ id: c.id, name: `${c.last_name} ${c.first_name}`, account: c.account_name, title: c.title, department: c.department, email: c.email }));
-        }
-      }
-    } catch { /* 詳細取得失敗はサマリーのみで継続 */ }
+    // v1.2.5: 一覧画面のみ records を取得（50件固定）
+    if (RECORD_ENDPOINTS[page]) {
+      try {
+        const res = await window.api.get(RECORD_ENDPOINTS[page]);
+        const fields = RECORD_FIELDS[page];
+        context.records = (res.data || []).map(r => extractRecord(r, fields));
+      } catch { /* records 取得失敗はサマリーのみで継続 */ }
+    }
 
     // サジェストボタン表示
     const chips = SUGGESTIONS[page] || [];
