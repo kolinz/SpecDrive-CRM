@@ -119,7 +119,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\nginx\gen-htpasswd
 > **Linux の場合：**  
 > `htpasswd` コマンドが利用できる環境（Apache Tools など）では以下でも生成できます。  
 > ```bash
-> sudo apt-get install -y apache2-utils
+> sudo apt-get install -y apache2-utils  # Ubuntu/Debian
+> # sudo yum install httpd-tools          # CentOS/RHEL
 > htpasswd -cb nginx/.htpasswd admin admin1234
 > ```
 
