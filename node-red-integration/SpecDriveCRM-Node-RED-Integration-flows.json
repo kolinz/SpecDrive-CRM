@@ -1,0 +1,488 @@
+[
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "SpecDriveCRM 連携デモ",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "a657de7f0fc9a048",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "a611b22ebb9f7f65",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094CE",
+            "bgPage": "#eeeeee",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "626b1994e339ee64",
+        "type": "ui-group",
+        "name": "商談一覧",
+        "page": "fd108a6839126012",
+        "width": "12",
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "fd108a6839126012",
+        "type": "ui-page",
+        "name": "CRM Dashboard",
+        "ui": "a657de7f0fc9a048",
+        "path": "/page1",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "a611b22ebb9f7f65",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "0f5c5a4721b04360",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 100,
+        "wires": [
+            [
+                "b10d3c815e527606"
+            ]
+        ]
+    },
+    {
+        "id": "b10d3c815e527606",
+        "type": "http request",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://13.193.195.47:3000/api/opportunities?page=1&limit=20",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "bearer",
+        "senderr": false,
+        "headers": [],
+        "x": 290,
+        "y": 100,
+        "wires": [
+            [
+                "470c85aebb6b3208"
+            ]
+        ]
+    },
+    {
+        "id": "67dc588f3cbf7971",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 600,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "470c85aebb6b3208",
+        "type": "json",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": true,
+        "x": 450,
+        "y": 100,
+        "wires": [
+            [
+                "67dc588f3cbf7971"
+            ]
+        ]
+    },
+    {
+        "id": "d32b237011cc6aa2",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "300",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 240,
+        "wires": [
+            [
+                "2397b44c244c565c"
+            ]
+        ]
+    },
+    {
+        "id": "2397b44c244c565c",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "ログイン Body",
+        "func": "msg.payload = {\n    username: \"admin\",\n    password: \"admin1234\"\n};\nmsg.headers = { \"Content-Type\": \"application/json\" };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 240,
+        "wires": [
+            [
+                "fa8419f1233523f7"
+            ]
+        ]
+    },
+    {
+        "id": "fa8419f1233523f7",
+        "type": "http request",
+        "z": "f6f2187d.f17ca8",
+        "name": "POSTログイン",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://13.193.195.47:3000/api/auth/login",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 500,
+        "y": 240,
+        "wires": [
+            [
+                "c69a153d77ee032e"
+            ]
+        ]
+    },
+    {
+        "id": "0b9c05c7fa01d11c",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "JWT 保存＋次の GET 準備",
+        "func": "const token = msg.payload.data.token;\nflow.set(\"jwt\", token);\n\nmsg.headers = { \"Authorization\": \"Bearer \" + token };\nmsg.payload = null;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 340,
+        "wires": [
+            [
+                "1ca2cbfcbcf31415"
+            ]
+        ]
+    },
+    {
+        "id": "1ca2cbfcbcf31415",
+        "type": "http request",
+        "z": "f6f2187d.f17ca8",
+        "name": "GET opportunities（商談取得）",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://13.193.195.47:3000/api/opportunities?page=1&limit=100",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 350,
+        "y": 420,
+        "wires": [
+            [
+                "55fad05a9e1fc21c"
+            ]
+        ]
+    },
+    {
+        "id": "55fad05a9e1fc21c",
+        "type": "json",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 670,
+        "y": 420,
+        "wires": [
+            [
+                "794328ac4949d603"
+            ]
+        ]
+    },
+    {
+        "id": "794328ac4949d603",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "整形",
+        "func": "const opportunities = msg.payload.data;\n\nconst formatted = opportunities.map(opp => ({\n    opportunity_id: opp.id,\n    name: opp.name,\n    stage: opp.stage,\n    stage_label: stageLabel(opp.stage),\n    amount: opp.amount !== null ? Number(opp.amount) : null,\n    probability: opp.probability,\n    close_date: opp.close_date ? opp.close_date.substring(0, 10) : null,\n    owner_name: opp.owner_name || null,\n    account_id: opp.account_id,\n    account_name: opp.account_name || null\n}));\n\nmsg.payload = formatted;\nreturn msg;\n\nfunction stageLabel(stage) {\n    const map = {\n        prospecting:   \"見込み\",\n        qualification: \"要件確認\",\n        proposal:      \"提案中\",\n        negotiation:   \"交渉中\",\n        closed_won:    \"受注\",\n        closed_lost:   \"失注\"\n    };\n    return map[stage] || stage;\n}",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 270,
+        "y": 500,
+        "wires": [
+            [
+                "1b361d74afd3a19a"
+            ]
+        ]
+    },
+    {
+        "id": "1b361d74afd3a19a",
+        "type": "change",
+        "z": "f6f2187d.f17ca8",
+        "name": "flow context に保存",
+        "rules": [
+            {
+                "t": "set",
+                "p": "merged_data",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 470,
+        "y": 500,
+        "wires": [
+            [
+                "94476e31094d11db",
+                "5d3c52c2b67a93ed"
+            ]
+        ]
+    },
+    {
+        "id": "94476e31094d11db",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 680,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "c69a153d77ee032e",
+        "type": "json",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 670,
+        "y": 240,
+        "wires": [
+            [
+                "0b9c05c7fa01d11c"
+            ]
+        ]
+    },
+    {
+        "id": "5d551e85aa83c354",
+        "type": "ui-table",
+        "z": "f6f2187d.f17ca8",
+        "group": "626b1994e339ee64",
+        "name": "商談一覧表示",
+        "label": "",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "maxrows": 0,
+        "passthru": false,
+        "autocols": true,
+        "showSearch": true,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "append",
+        "className": "",
+        "x": 700,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5d3c52c2b67a93ed",
+        "type": "change",
+        "z": "f6f2187d.f17ca8",
+        "name": "flow から取得して payload にセット",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "merged_data",
+                "tot": "flow"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 430,
+        "y": 580,
+        "wires": [
+            [
+                "5d551e85aa83c354"
+            ]
+        ]
+    },
+    {
+        "id": "814256de66949ef0",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "トークンを手動取得し、GETで商談一覧を取得",
+        "info": "",
+        "x": 220,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "b89fb4c6e404f456",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "トークン発行から商談一覧を取得しDashboard表示",
+        "info": "",
+        "x": 230,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "ab36fa82f40d555b",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "@flowfuse/node-red-dashboard ノード必須",
+        "info": "",
+        "x": 200,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "7d55c47fd0391234",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.30.2"
+        }
+    }
+]
