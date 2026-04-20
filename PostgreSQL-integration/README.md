@@ -71,10 +71,6 @@
              Default (Logout F12)                                                                              Free
 ```
 
-
-
-
-
 > **注意:** ホスト名とポートはセッションごとに変わります。毎回確認してください。
 
 ### 3. パブリッククラウド(例 AWS Lightsail)上で、BIツールのMetabaseを起動
@@ -111,19 +107,15 @@ Metabase 管理画面で以下の手順で設定します。
 
 ## 接続確認（任意）
 
-Metabase で接続する前に pgAdmin 4 や psql で事前確認すると、トラブル時の切り分けがしやすくなります。
+Metabase で接続する前に[pgAdmin](https://www.pgadmin.org/)で事前確認すると、トラブル時の切り分けがしやすくなります。
 
-```bash
-psql -h <ホスト名> -p <ポート> -U crmuser -d crmdb
-# パスワード: crmpassword
-```
-
-接続後に以下を実行してデータが見えれば OK です。
-
-```sql
-SELECT * FROM accounts LIMIT 5;
-```
-
+| 項目 | 値 |
+|---|---|
+| ホスト | 今回のセッションのホスト名（例: `ksotptccvs.localto.net`） |
+| ポート | 今回のセッションのポート番号（例: `8310`） |
+| データベース名 | `crmdb` |
+| ユーザー名 | `crmuser` |
+| パスワード | `crmpassword` |
 ---
 
 ## ダッシュボード構成案
