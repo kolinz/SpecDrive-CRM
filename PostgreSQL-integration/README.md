@@ -8,55 +8,82 @@
 ## 前提条件
 
 - SpecDrive CRM が オンプレミスまたはPC内で`docker compose up -d` で起動済みであること。
-- トンネルサービスの[localtonet](https://localtonet.com/)のアカウントが作成済みであること。
+- トンネルサービスの[localtonet](https://localtonet.com/)のアカウントが作成済みであること。localtonetのトップページから、`Get Started Free`でアカウント作成ができます。
 - localtonetのアプリケーションがPCにインストール済みであること。
   - localtonetアプリの[ダウンロード](https://localtonet.com/download)
 
 ---
 
-## 毎回の起動手順
+## 起動手順
 
-### 1. SpecDrive CRM を起動
+### 1. オンプレミスまたはPC内で、SpecDrive CRM を起動
 
-```bash
-docker compose up -d
+こちらの[README](https://github.com/kolinz/SpecDrive-CRM/blob/main/README.md)を参照のこと。
+
+### 2. localtonet を TCP Tunnelの作成とトンネルの起動
+
+#### 2-1. TCP Tunnelの作成
+
+1. Webブラウザで[localtonet](https://localtonet.com/)にアクセスします。
+2. 画面右上の`Dashbaord`をクリックします。
+3. ログインします。
+4. 画面左側の`My Tokens`をクリックします。
+5. DefaultのToken値をコピーします。メモアプリなどに転記しましょう。
+6. 画面左側の`My Tunnels`をクリックします。
+7. `TCP-UDP`をクリックします。
+8. `Create TCP-UDP Tunnel`をクリックします。
+9. `Port`に、5432 を入力します。
+10. `Create`をクリックします
+
+##### 2-2. localtonet アプリの起動
+
+オンプレミスサーバーまたはPCにインストールした、localtonetのアプリケーションを起動します。
+
+`Please Enter AuthToken or PIN`が表示されるので、先ほどメモしておいた、Token値をコピーして貼り付け、Enterキーを押します。
+
+```
+ [ Session Status: Connected ]
+
+                IP/Url                  Protocol         Client IP          Client Port           Ping        Status
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+         Default (Logout F12)                                                                                  Free
 ```
 
-### 2. localtonet を TCP モードで起動
+##### 2-3. Webブラウザ上で、TCP-UDP Tunnelの起動
 
-```bash
-# Linux / Mac
-./localtonet tcp 5432
+1. localtonetのDashboardに戻ります。
+2. 画面左側の`My Tunnels`をクリックします。
+3. `TCP-UDP`をクリックします。
+4. 作成済みのTCP Tunnelを起動します。緑色の▶アイコンをクリックすれば起動開始です。
 
-# Windows（PowerShell）
-.\localtonet.exe tcp 5432
-```
+##### 2-4. localtonetアプリで起動確認
 
-> **注意:** HTTP/s モードでは PostgreSQL に接続できません。必ず `tcp` を指定すること。
-
-起動後、コンソールに以下のように表示されます。
+表示されたホスト名（例: `ksotptccvs.localto.net`）とポート番号（例: `8310`）を控えます。
 
 ```
-TCP: ksotptccvs.localto.net:1461 → 127.0.0.1:5432
+[ Session Status: Connected ]
+
+                    IP/Url                     Protocol        Client IP        Client Port         Ping      Status
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+         ksotptccvs.localto.net:8310           TCP             127.0.0.1        5432                7           OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+             Default (Logout F12)                                                                              Free
 ```
 
-ホスト名（例: `ksotptccvs.localto.net`）とポート番号（例: `1461`）を控えます。
+
+
+
 
 > **注意:** ホスト名とポートはセッションごとに変わります。毎回確認してください。
 
-### 3. Metabase を起動
+### 3. パブリッククラウド(例 AWS Lightsail)上で、BIツールのMetabaseを起動
 
 ```bash
 docker run -d \
   -p 3000:3000 \
   --name metabase \
   metabase/metabase
-```
-
-すでにコンテナが存在する場合は以下で起動します。
-
-```bash
-docker start metabase
 ```
 
 ブラウザで `http://localhost:3000` にアクセスします。
@@ -73,7 +100,7 @@ Metabase 管理画面で以下の手順で設定します。
 |---|---|
 | データベースの種類 | PostgreSQL |
 | ホスト | 今回のセッションのホスト名（例: `ksotptccvs.localto.net`） |
-| ポート | 今回のセッションのポート番号（例: `1461`） |
+| ポート | 今回のセッションのポート番号（例: `8310`） |
 | データベース名 | `crmdb` |
 | ユーザー名 | `crmuser` |
 | パスワード | `crmpassword` |
