@@ -8,7 +8,7 @@
 ## 構成概要
  
 ```
-┌─ AWS Lightsail（パブリッククラウド）──┐     ┌─ オンプレミス（Windows）──────────┐
+┌─ AWS Lightsail（パブリッククラウド）──┐     ┌─ オンプレミス（またはPC）──────────┐
 │                                     │     │                                  │
 │  SpecDrive CRM                      │     │  Node-RED (Docker)               │
 │  - Nginx      :8080                 │←────│  - 定期取得フロー（5分ごと）       │
