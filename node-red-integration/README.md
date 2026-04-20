@@ -30,10 +30,16 @@
 | Dashboard | `http://localhost:1880/dashboard` |
 
 ---
+
+## Phase 1: SpecDrive CRMのセットアップ
+
+パブリッククラウド上の仮想マシンに接続し、こちらの[README](https://github.com/kolinz/SpecDrive-CRM/blob/main/README.md)を参考にセットアップしてください。
+
+---
  
-## Phase 1: Node-RED のセットアップ
+## Phase 2: Node-RED のセットアップ
  
-### 1-1. Docker で Node-RED 起動（永続化あり）
+### 2-1. Docker で Node-RED 起動（永続化あり）
  
 ```powershell
 docker volume create node_red_data
@@ -47,7 +53,7 @@ docker run -d `
  
 > **重要:** `-v node_red_data:/data` がないとコンテナ再起動時にフロー・インストール済みノードが消える。
  
-### 1-2. FlowFuse Dashboard のインストール
+### 2-2. FlowFuse Dashboard のインストール
  
 1. `http://localhost:1880` を開く
 2. 右上メニュー → **Manage Palettes** をクリック
@@ -55,15 +61,15 @@ docker run -d `
 4. **インストール**
 ---
 
-## フローのインポートと動作確認
+## 3. フローのインポートと動作確認
 
-### 2-1. サンプルファイルのダウンロード
+### 3-1. サンプルファイルのダウンロード
 
 下記をダウンロードします。
 
 [SpecDriveCRM-Node-RED-Integration-flows.json](SpecDriveCRM-Node-RED-Integration-flows.json)
 
-### 2-2. サンプルファイルをNode-REDにインポート
+### 3-2. サンプルファイルをNode-REDにインポート
 
 1. `http://localhost:1880` を開く
 2. 右上メニュー → **Import** をクリック
@@ -75,7 +81,7 @@ docker run -d `
 
 <img src="https://github.com/kolinz/SpecDrive-CRM/blob/main/node-red-integration/flow-image.png" width="90%" />
    
-### 動作確認
+### 4. 動作確認
 
 1. `POSTログイン`ノード（Node-REDの画面の箱状のもの）内のURLの値が、SpecDrive CRMの接続先情報なので、IPアドレスや独自ドメイン名に書き換えます。
 2. `GET opportunities（商談取得）`ノード内のURLの値が、SpecDrive CRMの接続先情報なので、IPアドレスや独自ドメイン名に書き換えます。
