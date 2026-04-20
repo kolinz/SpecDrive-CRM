@@ -61,7 +61,7 @@ docker run -d `
 
 下記をダウンロードします。
 
-[SpecDriveCRM-Node-RED-Integration-flows.json](node-red-integration/SpecDriveCRM-Node-RED-Integration-flows.json)
+[SpecDriveCRM-Node-RED-Integration-flows.json](SpecDriveCRM-Node-RED-Integration-flows.json)
 
 ### 2-2. サンプルファイルをNode-REDにインポート
 
