@@ -186,22 +186,23 @@ DIFY_ENDPOINT=https://api.dify.ai/v1
 ```powershell(Windows環境)
 # 初回・設定変更後の起動（htpasswd 生成 → down → up）
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\nginx\gen-htpasswd.ps1
+```
+
 docker compose down
 docker compose up -d
 
-# ログ確認
+### ログ確認
 docker compose logs -f api
 
-# 停止
+### 停止
 docker compose down
 
-# データも含めて完全削除
+### データも含めて完全削除
 docker compose down -v
 
-# サンプルデータを再投入（データを一度削除してから起動）
+### サンプルデータを再投入（データを一度削除してから起動）
 docker compose down -v
 docker compose up -d
-```
 
 ---
 
@@ -214,6 +215,13 @@ docker compose up -d
 | crm_db | 5432 | PostgreSQL（Metabase 接続用） |
 
 ---
+
+## ハイブリッドクラウドによる連携
+
+- トンネルサービスを用いたDB連携
+    - パブリッククラウド上のBIツール × オンプレミス or PC内のSpecDrive CRM 連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/PostgreSQL-integration/README.md)
+- API連携
+    - オンプレミスまたはPC内のNode-RED × パブリッククラウド上のSpecDrive CRM API連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/node-red-integration/README.md)
 
 ## プロジェクト構成
 
@@ -255,14 +263,6 @@ demo-crm/
     ├── crm-impl-prompts-v1.2.4.md # 実装プロンプト集
     ├── crm-sdd-spec-v1.2.4.md     # システム仕様書
     └── project-prompt-v1.2.4.md # プロジェクトプロンプト
-```
-
-## ハイブリッドクラウドデモ
-- トンネルサービスを用いたDB連携
-    - パブリッククラウド上のBIツール × オンプレミス or PC内のSpecDrive CRM 連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/PostgreSQL-integration/README.md) 
-- API連携
-    - オンプレミスまたはPC内のNode-RED × パブリッククラウド上のSpecDrive CRM API連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/node-red-integration/README.md)
-
 ```
 
 ## ライセンス
