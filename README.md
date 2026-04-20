@@ -257,6 +257,14 @@ demo-crm/
     └── project-prompt-v1.2.4.md # プロジェクトプロンプト
 ```
 
+## ハイブリッドクラウドデモ
+- トンネルサービスを用いたDB連携
+    - パブリッククラウド上のBIツール × オンプレミス or PC内のSpecDrive CRM 連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/PostgreSQL-integration/README.md) 
+- API連携
+    - オンプレミスまたはPC内のNode-RED × パブリッククラウド上のSpecDrive CRM API連携デモ [手順書](https://github.com/kolinz/SpecDrive-CRM/blob/main/node-red-integration/README.md)
+
+```
+
 ## ライセンス
 
 [MIT License](LICENSE)
