@@ -1,7 +1,7 @@
 # Node-RED × SpecDrive CRM 連携デモ 手順書
  
 **作成日:** 2026-04-20  
-**構成:** AWS Lightsail（CRM）× Windows Docker（Node-RED）
+**構成:** API連携によるハイブリッドクラウドデモ。AWS Lightsail（CRM）× オンプレミスサーバー or PC内Docker（Node-RED）。
  
 ---
  
