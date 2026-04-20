@@ -1,4 +1,4 @@
-# オンプレミスまたはPC内のNode-RED × パブリッククラウド上のSpecDrive CRM 連携デモ 手順書
+# オンプレミスまたはPC内のNode-RED × パブリッククラウド上のSpecDrive CRM API連携デモ 手順書
  
 **作成日:** 2026-04-20  
 **構成:** API連携によるハイブリッドクラウドデモ。AWS Lightsail（CRM）× オンプレミス or PC内Docker（Node-RED）。
