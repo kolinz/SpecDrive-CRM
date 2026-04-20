@@ -9,13 +9,13 @@
  
 ```
 ┌─ AWS Lightsail（パブリッククラウド）──┐     ┌─ オンプレミス（Windows）──────────┐
-│                                    │     │                                  │
-│  SpecDrive CRM                     │     │  Node-RED (Docker)               │
-│  - Nginx      :8080                │←────│  - 定期取得フロー（5分ごと）       │
-│  - API        :3000                │HTTP │  - FlowFuse Dashboard 表示        │
-│  - PostgreSQL :5432                │     │  - HTTP エンドポイント公開         │
-│                                    │     │                                  │
-└────────────────────────────────────┘     └──────────────────────────────────┘
+│                                     │     │                                  │
+│  SpecDrive CRM                      │     │  Node-RED (Docker)               │
+│  - Nginx      :8080                 │←────│  - 定期取得フロー（5分ごと）       │
+│  - API        :3000                 │HTTP │  - FlowFuse Dashboard 表示       │
+│  - PostgreSQL :5432                 │     │  - HTTP エンドポイント公開        │
+│                                     │     │                                  │
+└──────────────────────────────────-──┘     └──────────────────────────────────┘
 ```
  
 ---
@@ -54,4 +54,22 @@ docker run -d `
 3. **ノードを追加** タブで `@flowfuse/node-red-dashboard` を検索
 4. **インストール**
 ---
- 
+
+## フローのインポート
+
+### 2-1. サンプルファイルのダウンロード
+
+下記をダウンロードします。
+
+[SpecDriveCRM-Node-RED-Integration-flows.json](node-red-integration/SpecDriveCRM-Node-RED-Integration-flows.json)
+
+### 2-2. サンプルファイルをNode-REDにインポート
+
+1. `http://localhost:1880` を開く
+2. 右上メニュー → **IMPORT**
+3. 
+
+
+
+
+
