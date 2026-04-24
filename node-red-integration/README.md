@@ -43,12 +43,7 @@
  
 ```powershell
 docker volume create node_red_data
-docker run -d `
-  -p 1880:1880 `
-  -v node_red_data:/data `
-  --name node-red `
-  --restart unless-stopped `
-  nodered/node-red
+docker run -itd -p 1880:1880 -v node_red_data:/data --name node-red --restart unless-stopped nodered/node-red
 ```
  
 > **重要:** `-v node_red_data:/data` がないとコンテナ再起動時にフロー・インストール済みノードが消える。
